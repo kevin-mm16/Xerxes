@@ -1,0 +1,5 @@
+{
+  "ApiUrl": "https://YOUR-HOST/api/device-intake",
+  "EnrollmentToken": "REPLACE_WITH_RANDOM_TOKEN_AT_LEAST_32_CHARACTERS",
+  "CollectorVersion": "1.0.0"
+}

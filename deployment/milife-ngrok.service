@@ -1,0 +1,38 @@
+[Unit]
+Description=MiLife device inventory public HTTPS tunnel
+Wants=network-online.target
+After=network-online.target nginx.service milife-device-intake.service
+
+[Service]
+Type=simple
+User=milife-tunnel
+Group=milife-tunnel
+Environment=HOME=/var/lib/milife-ngrok
+EnvironmentFile=/etc/milife-ngrok/ngrok.env
+ExecStart=/usr/local/bin/ngrok http http://127.0.0.1:5089 --url=https://uphill-cofounder-trident.ngrok-free.dev --inspect=false --log=stdout --log-format=json
+Restart=always
+RestartSec=5
+TimeoutStopSec=20
+UMask=0077
+StateDirectory=milife-ngrok
+StateDirectoryMode=0700
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectClock=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectHostname=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

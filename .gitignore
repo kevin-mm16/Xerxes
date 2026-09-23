@@ -1,0 +1,17 @@
+**/bin/
+**/obj/
+publish/
+artifacts/
+TestResults/
+.vs/
+*.user
+*.db
+*.db-shm
+*.db-wal
+*.env
+*.log
+**/.keys/
+**/appsettings.Local.json
+**/collector-settings.json
+**/agent-settings.json
+!**/collector-settings.example.json

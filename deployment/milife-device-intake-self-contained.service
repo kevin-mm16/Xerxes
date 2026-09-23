@@ -1,0 +1,39 @@
+[Unit]
+Description=MiLife device inventory intake
+Wants=network-online.target
+After=network-online.target mysql.service
+
+[Service]
+Type=simple
+User=milife-intake
+Group=milife-intake
+WorkingDirectory=/opt/milife-device-intake
+ExecStart=/opt/milife-device-intake/MiLife.DeviceIntake.Api
+EnvironmentFile=/etc/milife-device-intake/device-intake.env
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+UMask=0077
+StateDirectory=milife-device-intake
+StateDirectoryMode=0700
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectClock=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectHostname=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadWritePaths=/var/lib/milife-device-intake
+CapabilityBoundingSet=
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,64 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{E93EFDD2-2F03-4093-A43D-3B3B5BFB1CAB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MiLife.DeviceContracts", "src\MiLife.DeviceContracts\MiLife.DeviceContracts.csproj", "{AC9E0CB4-7888-48D5-B198-2055146FAF4C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MiLife.DeviceCollector", "src\MiLife.DeviceCollector\MiLife.DeviceCollector.csproj", "{B6DC066D-4FB0-4BAC-8773-CFC51808F3E5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MiLife.DeviceIntake.Api", "src\MiLife.DeviceIntake.Api\MiLife.DeviceIntake.Api.csproj", "{A022ABB8-357C-4014-B785-6E865D341982}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{94555CE7-D4CE-4EA8-8F51-29A9641B6DA1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MiLife.DeviceCollector.Tests", "tests\MiLife.DeviceCollector.Tests\MiLife.DeviceCollector.Tests.csproj", "{7D6A1A9E-7867-4AB1-BBEB-9A760D429697}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MiLife.DeviceIntake.Api.Tests", "tests\MiLife.DeviceIntake.Api.Tests\MiLife.DeviceIntake.Api.Tests.csproj", "{03E0549C-28D1-45A3-BDF2-8B9E905DD5C7}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MiLife.DeviceAgent", "src\MiLife.DeviceAgent\MiLife.DeviceAgent.csproj", "{A8FD68F0-7638-4D36-A04D-D2A83BDA5328}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{AC9E0CB4-7888-48D5-B198-2055146FAF4C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AC9E0CB4-7888-48D5-B198-2055146FAF4C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AC9E0CB4-7888-48D5-B198-2055146FAF4C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AC9E0CB4-7888-48D5-B198-2055146FAF4C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B6DC066D-4FB0-4BAC-8773-CFC51808F3E5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B6DC066D-4FB0-4BAC-8773-CFC51808F3E5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B6DC066D-4FB0-4BAC-8773-CFC51808F3E5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B6DC066D-4FB0-4BAC-8773-CFC51808F3E5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A022ABB8-357C-4014-B785-6E865D341982}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A022ABB8-357C-4014-B785-6E865D341982}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A022ABB8-357C-4014-B785-6E865D341982}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A022ABB8-357C-4014-B785-6E865D341982}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7D6A1A9E-7867-4AB1-BBEB-9A760D429697}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7D6A1A9E-7867-4AB1-BBEB-9A760D429697}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7D6A1A9E-7867-4AB1-BBEB-9A760D429697}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7D6A1A9E-7867-4AB1-BBEB-9A760D429697}.Release|Any CPU.Build.0 = Release|Any CPU
+		{03E0549C-28D1-45A3-BDF2-8B9E905DD5C7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{03E0549C-28D1-45A3-BDF2-8B9E905DD5C7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{03E0549C-28D1-45A3-BDF2-8B9E905DD5C7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{03E0549C-28D1-45A3-BDF2-8B9E905DD5C7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A8FD68F0-7638-4D36-A04D-D2A83BDA5328}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A8FD68F0-7638-4D36-A04D-D2A83BDA5328}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A8FD68F0-7638-4D36-A04D-D2A83BDA5328}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A8FD68F0-7638-4D36-A04D-D2A83BDA5328}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{AC9E0CB4-7888-48D5-B198-2055146FAF4C} = {E93EFDD2-2F03-4093-A43D-3B3B5BFB1CAB}
+		{B6DC066D-4FB0-4BAC-8773-CFC51808F3E5} = {E93EFDD2-2F03-4093-A43D-3B3B5BFB1CAB}
+		{A022ABB8-357C-4014-B785-6E865D341982} = {E93EFDD2-2F03-4093-A43D-3B3B5BFB1CAB}
+		{7D6A1A9E-7867-4AB1-BBEB-9A760D429697} = {94555CE7-D4CE-4EA8-8F51-29A9641B6DA1}
+		{03E0549C-28D1-45A3-BDF2-8B9E905DD5C7} = {94555CE7-D4CE-4EA8-8F51-29A9641B6DA1}
+		{A8FD68F0-7638-4D36-A04D-D2A83BDA5328} = {E93EFDD2-2F03-4093-A43D-3B3B5BFB1CAB}
+	EndGlobalSection
+EndGlobal

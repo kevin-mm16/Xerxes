@@ -1,0 +1,31 @@
+[Unit]
+Description=MiLife independent device inventory intake
+After=network.target
+
+[Service]
+Type=simple
+User=milife-intake
+Group=milife-intake
+WorkingDirectory=/opt/milife-device-intake
+ExecStart=/usr/bin/dotnet /opt/milife-device-intake/MiLife.DeviceIntake.Api.dll
+EnvironmentFile=/etc/milife-device-intake/device-intake.env
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+UMask=0077
+StateDirectory=milife-device-intake
+StateDirectoryMode=0700
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/milife-device-intake
+RestrictSUIDSGID=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+SyslogIdentifier=milife-device-intake
+
+[Install]
+WantedBy=multi-user.target
