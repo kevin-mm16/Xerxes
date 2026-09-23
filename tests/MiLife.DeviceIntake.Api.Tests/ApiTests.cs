@@ -354,6 +354,63 @@ public sealed class ApiTests : IDisposable
     }
 
     [Fact]
+    public async Task SilentTemplateCommandsRequireCurrentConsentAndCanBeCancelled()
+    {
+        var (device, enrollment) = await ManagedAgent(); using var owner = device; using var admin = await DashboardClient();
+        var route = $"/device-admin/api/agents/{enrollment.AgentId}/commands";
+        using var legacy = await admin.PostAsJsonAsync(route, new SupportRequest(TemplateId: "system-health", RunSilently: true));
+        Assert.Equal(HttpStatusCode.BadRequest, legacy.StatusCode);
+
+        enrollment = enrollment with { AgentVersion = AgentPolicy.AgentVersion, ConsentVersion = AgentPolicy.PrivacyNoticeVersion,
+            ConsentAcceptedAtUtc = DateTime.UtcNow };
+        using var upgraded = await device.PostAsJsonAsync("/api/device-agent/enroll", enrollment, InventoryJson.Options);
+        Assert.Equal(HttpStatusCode.OK, upgraded.StatusCode);
+
+        var catalog = await admin.GetFromJsonAsync<JsonElement>("/device-admin/api/commands/catalog");
+        var systemHealth = catalog.GetProperty("items").EnumerateArray().Single(item => item.GetProperty("id").GetString() == "system-health");
+        Assert.Equal("System health", systemHealth.GetProperty("name").GetString());
+        Assert.False(systemHealth.TryGetProperty("script", out _));
+
+        using var unknown = await admin.PostAsJsonAsync(route, new SupportRequest(TemplateId: "not-a-command", RunSilently: true));
+        Assert.Equal(HttpStatusCode.BadRequest, unknown.StatusCode);
+        using var created = await admin.PostAsJsonAsync(route, new SupportRequest(TemplateId: "system-health", RunSilently: true));
+        Assert.Equal(HttpStatusCode.OK, created.StatusCode);
+        var id = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+        var command = await device.GetFromJsonAsync<SupportCommand>($"/api/device-agent/{enrollment.AgentId}/commands/next", InventoryJson.Options);
+        Assert.NotNull(command); Assert.True(command.RunSilently); Assert.Equal("System health", command.DisplayName); Assert.NotEmpty(command.Script);
+
+        using var cancelled = await admin.PostAsJsonAsync($"{route}/{id}/cancel", new { });
+        Assert.Equal(HttpStatusCode.OK, cancelled.StatusCode);
+        using var lateDecision = await device.PostAsJsonAsync($"/api/device-agent/commands/{id}/decision", new SupportDecision(enrollment.AgentId, true));
+        Assert.Equal(HttpStatusCode.Conflict, lateDecision.StatusCode);
+        var history = await admin.GetFromJsonAsync<JsonElement>(route);
+        Assert.Equal("Cancelled", history.GetProperty("items")[0].GetProperty("status").GetString());
+
+        using var custom = await admin.PostAsJsonAsync(route, new SupportRequest("Get-Date", RunSilently: true));
+        Assert.Equal(HttpStatusCode.OK, custom.StatusCode);
+        var customId = (await custom.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+        var customCommand = await device.GetFromJsonAsync<SupportCommand>($"/api/device-agent/{enrollment.AgentId}/commands/next", InventoryJson.Options);
+        Assert.True(customCommand!.RunSilently);
+        using var decision = await device.PostAsJsonAsync($"/api/device-agent/commands/{customId}/decision", new SupportDecision(enrollment.AgentId, true));
+        Assert.Equal(HttpStatusCode.OK, decision.StatusCode);
+        using var result = await device.PostAsJsonAsync($"/api/device-agent/commands/{customId}/result", new SupportResult(enrollment.AgentId, "ok", 0, false));
+        Assert.Equal(HttpStatusCode.OK, result.StatusCode);
+    }
+
+    [Fact]
+    public async Task PreviewDashboardIsSeparateFromProductionRoute()
+    {
+        using var client = Client();
+        var production = await client.GetStringAsync("/device-admin");
+        var preview = await client.GetStringAsync("/device-admin/preview");
+        Assert.DoesNotContain("DEVICE OPERATIONS PREVIEW", production);
+        Assert.Contains("DEVICE OPERATIONS PREVIEW", preview);
+        Assert.Contains("/device-admin-preview/support.js", preview);
+        using var registration = await client.GetAsync("/device-registration-preview");
+        Assert.Equal(HttpStatusCode.OK, registration.StatusCode);
+    }
+
+    [Fact]
     public async Task ExpiredAndRevokedSupportCannotRun()
     {
         var (device, enrollment) = await ManagedAgent(); using var owner = device; using var admin = await DashboardClient();

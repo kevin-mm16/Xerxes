@@ -75,6 +75,13 @@ namespace MiLife.DeviceIntake.Api.Data.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTime?>("ConsentAcceptedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ConsentVersion")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("CredentialHash")
                         .IsRequired()
                         .HasMaxLength(64)
@@ -267,10 +274,20 @@ namespace MiLife.DeviceIntake.Api.Data.Migrations
                     b.Property<Guid>("AgentId")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("CommandType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime?>("CompletedAtUtc")
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime?>("DecidedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(128)
                         .HasColumnType("TEXT");
 
                     b.Property<int?>("ExitCode")
@@ -290,6 +307,9 @@ namespace MiLife.DeviceIntake.Api.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(256)
                         .HasColumnType("TEXT");
+
+                    b.Property<bool>("RunSilently")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Script")
                         .IsRequired()

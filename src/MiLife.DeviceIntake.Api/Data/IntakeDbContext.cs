@@ -30,6 +30,8 @@ public class IntakeDbContext : DbContext
         {
             entity.HasKey(j => j.Id);
             entity.Property(j => j.Script).HasMaxLength(4096);
+            entity.Property(j => j.CommandType).HasMaxLength(64);
+            entity.Property(j => j.DisplayName).HasMaxLength(128);
             entity.Property(j => j.Output).HasMaxLength(16000);
             entity.Property(j => j.RequestedBy).HasMaxLength(256);
             entity.Property(j => j.Status).HasMaxLength(32);
@@ -43,6 +45,7 @@ public class IntakeDbContext : DbContext
             entity.Property(a => a.CredentialHash).HasMaxLength(64);
             entity.Property(a => a.AgentVersion).HasMaxLength(32);
             entity.Property(a => a.EmployeeName).HasMaxLength(120);
+            entity.Property(a => a.ConsentVersion).HasMaxLength(32);
             entity.HasIndex(a => new { a.SerialNumber, a.LastSeenAtUtc });
             entity.HasOne(a => a.Device).WithMany().HasForeignKey(a => a.SerialNumber).OnDelete(DeleteBehavior.Restrict);
         });

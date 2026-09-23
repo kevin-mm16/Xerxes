@@ -23,7 +23,7 @@ public static class AgentEndpoints
             var cutoff = clock.GetUtcNow().UtcDateTime.AddMinutes(-15);
             var items = await db.Agents.AsNoTracking().Where(a => a.SerialNumber == serial).OrderByDescending(a => a.EnrolledAtUtc)
                 .Select(a => new { a.Id, a.AgentVersion, a.EnrolledAtUtc, a.LastSeenAtUtc, a.IsRevoked, a.IsEnabled,
-                    a.EmployeeName, a.Latitude, a.Longitude, a.AccuracyMeters, a.LocationCapturedAtUtc,
+                    a.EmployeeName, a.ConsentVersion, a.ConsentAcceptedAtUtc, a.Latitude, a.Longitude, a.AccuracyMeters, a.LocationCapturedAtUtc,
                     availability = a.IsRevoked || !a.IsEnabled ? "Disabled" : a.LastSeenAtUtc >= cutoff ? "Online" : "Offline" }).ToListAsync(ct);
             return Results.Ok(new { items });
         });
@@ -48,6 +48,11 @@ public static class AgentEndpoints
             return Results.BadRequest(new { error = "Employee name is required (maximum 120 characters)." });
         if (data.AgentId == Guid.Empty || !InventoryValidation.IsUsableSerial(data.SerialNumber) || !ValidVersion(data.AgentVersion) || !ValidToken(data.DeviceToken))
             return Results.BadRequest(new { error = "Invalid enrollment." });
+        var now = clock.GetUtcNow().UtcDateTime;
+        if (Version.TryParse(data.AgentVersion, out var parsedVersion) && parsedVersion >= new Version(1, 4, 0)
+            && (data.ConsentVersion != AgentPolicy.PrivacyNoticeVersion || data.ConsentAcceptedAtUtc is null
+                || data.ConsentAcceptedAtUtc > now.AddMinutes(5)))
+            return Results.BadRequest(new { error = "The current device-management notice must be accepted before enrollment." });
         var serial = InventoryValidation.NormalizeSerial(data.SerialNumber);
         if (!await db.DeviceSubmissions.AnyAsync(s => s.Id == data.SubmissionId && s.SerialNumber == serial, ct))
             return Results.BadRequest(new { error = "Register inventory before enabling heartbeat." });
@@ -61,9 +66,12 @@ public static class AgentEndpoints
             existing.IsEnabled = true;
             if (!string.IsNullOrWhiteSpace(data.EmployeeName)) existing.EmployeeName = data.EmployeeName.Trim();
             existing.AgentVersion = data.AgentVersion;
+            existing.ConsentVersion = data.ConsentVersion;
+            existing.ConsentAcceptedAtUtc = data.ConsentAcceptedAtUtc;
         }
         else db.Agents.Add(new DeviceAgent { Id = data.AgentId, SerialNumber = serial, CredentialHash = Hash(data.DeviceToken),
-            EmployeeName = data.EmployeeName?.Trim(), AgentVersion = data.AgentVersion, EnrolledAtUtc = clock.GetUtcNow().UtcDateTime });
+            EmployeeName = data.EmployeeName?.Trim(), AgentVersion = data.AgentVersion, ConsentVersion = data.ConsentVersion,
+            ConsentAcceptedAtUtc = data.ConsentAcceptedAtUtc, EnrolledAtUtc = now });
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateException) { return Results.StatusCode(503); }
         return Results.Ok(new AgentReceipt(true, data.AgentId, 300));

@@ -19,6 +19,8 @@ public static class DashboardEndpoints
     {
         app.MapGet("/device-admin", (IWebHostEnvironment environment) => Results.File(
             Path.Combine(environment.ContentRootPath, "wwwroot", "device-admin", "index.html"), "text/html; charset=utf-8"));
+        app.MapGet("/device-admin/preview", (IWebHostEnvironment environment) => Results.File(
+            Path.Combine(environment.ContentRootPath, "wwwroot", "device-admin-preview", "index.html"), "text/html; charset=utf-8"));
         app.MapGet("/device-admin/api/session", (HttpContext context, IAntiforgery antiforgery) =>
             Results.Ok(new { authenticated = context.User.Identity?.IsAuthenticated == true,
                 username = context.User.Identity?.Name, csrfToken = antiforgery.GetAndStoreTokens(context).RequestToken }));

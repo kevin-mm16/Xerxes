@@ -1,5 +1,6 @@
 using MiLife.DeviceContracts;
 using MiLife.DeviceIntake.Api.Services;
+using System.Text.Json;
 
 namespace MiLife.DeviceIntake.Api.Tests;
 
@@ -41,5 +42,14 @@ public sealed class ValidationTests
         Assert.False(validator.Validate(null)); Assert.False(validator.Validate(""));
         Assert.Throws<InvalidOperationException>(() => new TokenValidator(new string('i', 40), new string('i', 40)));
         Assert.Throws<InvalidOperationException>(() => new TokenValidator("weak", new string('a', 40)));
+    }
+
+    [Fact]
+    public void OlderCommandPayloadsDefaultToUserApproval()
+    {
+        var id = Guid.NewGuid();
+        var json = $$"""{"id":"{{id}}","script":"Get-Date","requestedBy":"IT","expiresAtUtc":"2030-01-01T00:00:00Z"}""";
+        var command = JsonSerializer.Deserialize<SupportCommand>(json, InventoryJson.Options);
+        Assert.NotNull(command); Assert.False(command.RunSilently); Assert.Null(command.DisplayName);
     }
 }

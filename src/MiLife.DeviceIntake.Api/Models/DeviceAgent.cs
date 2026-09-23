@@ -12,6 +12,8 @@ public sealed class DeviceAgent
     public bool IsEnabled { get; set; } = true;
     public bool IsRevoked { get; set; }
     public string? EmployeeName { get; set; }
+    public string? ConsentVersion { get; set; }
+    public DateTime? ConsentAcceptedAtUtc { get; set; }
     public double? Latitude { get; set; }
     public double? Longitude { get; set; }
     public double? AccuracyMeters { get; set; }
@@ -24,6 +26,9 @@ public sealed class SupportJob
     public Guid AgentId { get; set; }
     public DeviceAgent Agent { get; set; } = null!;
     public string Script { get; set; } = "";
+    public string CommandType { get; set; } = "custom";
+    public string DisplayName { get; set; } = "Custom PowerShell";
+    public bool RunSilently { get; set; }
     public string RequestedBy { get; set; } = "";
     public string Status { get; set; } = "Queued";
     public DateTime RequestedAtUtc { get; set; }

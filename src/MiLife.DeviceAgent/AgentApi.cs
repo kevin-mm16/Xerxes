@@ -54,7 +54,9 @@ public sealed class AgentApi(CollectorSettings settings, LocalFiles logs) : IDis
         await CollectAsync(profile, store);
         using var request = new HttpRequestMessage(HttpMethod.Post, Endpoint("enroll"));
         request.Headers.Add("X-Enrollment-Token", settings.EnrollmentToken);
-        request.Content = JsonContent.Create(new AgentEnrollment(profile.AgentId, profile.SubmissionId, profile.SerialNumber, "1.3.1", profile.DeviceToken, profile.EmployeeName), options: InventoryJson.Options);
+        request.Content = JsonContent.Create(new AgentEnrollment(profile.AgentId, profile.SubmissionId, profile.SerialNumber,
+            AgentPolicy.AgentVersion, profile.DeviceToken, profile.EmployeeName, profile.PrivacyNoticeVersion,
+            profile.PrivacyAcceptedAtUtc), options: InventoryJson.Options);
         using var response = await http.SendAsync(request);
         if (response.StatusCode == HttpStatusCode.Forbidden) throw new InvalidOperationException("IT has blocked this installation. Ask IT to restore access in the dashboard, then try Check in again.");
         if (!response.IsSuccessStatusCode) throw new InvalidOperationException("Heartbeat enrollment failed. Please contact IT or try again later.");
@@ -67,7 +69,7 @@ public sealed class AgentApi(CollectorSettings settings, LocalFiles logs) : IDis
         using var request = new HttpRequestMessage(HttpMethod.Post, Endpoint(disable ? "disable" : "heartbeat"));
         request.Headers.Add("X-Device-Token", profile.DeviceToken);
         var location = disable ? null : await WindowsLocation.ReadAsync();
-        request.Content = JsonContent.Create(new AgentHeartbeat(profile.AgentId, "1.3.1", location), options: InventoryJson.Options);
+        request.Content = JsonContent.Create(new AgentHeartbeat(profile.AgentId, AgentPolicy.AgentVersion, location), options: InventoryJson.Options);
         using var response = await http.SendAsync(request);
         logs.Log("HeartbeatStatus", ((int)response.StatusCode).ToString());
         return response.StatusCode;

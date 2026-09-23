@@ -13,6 +13,8 @@ public sealed class AgentProfile
     public bool Enabled { get; set; }
     public string EmployeeName { get; set; } = "";
     public string ManagementNoticeVersion { get; set; } = "";
+    public string PrivacyNoticeVersion { get; set; } = "";
+    public DateTime? PrivacyAcceptedAtUtc { get; set; }
     public Guid CollectionId { get; set; } = Guid.NewGuid();
     public MiLife.DeviceContracts.DeviceInventory? PendingInventory { get; set; }
     public Guid RemovalActionId { get; set; }
