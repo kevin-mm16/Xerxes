@@ -4,9 +4,9 @@ set -euo pipefail
 [[ $EUID -eq 0 ]] || { echo 'Run as root.' >&2; exit 1; }
 
 echo SERVICES
-systemctl is-active ssh nginx mysql milife-device-intake.service
+systemctl is-active ssh nginx mysql milife-device-intake.service milife-ngrok.service
 systemctl is-enabled nginx mysql milife-device-intake.service \
-  milife-device-intake-backup.timer
+  milife-device-intake-backup.timer milife-ngrok.service
 
 echo HEALTH
 curl --fail --silent --show-error http://127.0.0.1:5088/health
@@ -27,6 +27,8 @@ echo FILE_PERMISSIONS
 stat -c '%a %U:%G %n' \
   /etc/milife-device-intake \
   /etc/milife-device-intake/device-intake.env \
+  /etc/milife-ngrok \
+  /etc/milife-ngrok/ngrok.env \
   /opt/milife-device-intake/MiLife.DeviceIntake.Api \
   /opt/milife-device-intake/downloads/MiLifeDeviceAgent.exe
 

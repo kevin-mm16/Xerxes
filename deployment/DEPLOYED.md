@@ -1,4 +1,4 @@
-> Dedicated replacement server: `172.26.50.221`. Release 1.3.1 was installed on 2026-09-23. The public tunnel is not active until the existing ngrok account token is restored, so the public addresses below are currently offline.
+> Dedicated production server: `172.26.50.221`. Release 1.3.1 and the existing public hostname were activated on 2026-09-23.
 
 ## Dedicated replacement deployment — 2026-09-23
 
@@ -6,9 +6,9 @@ The replacement host runs Ubuntu 22.04, MySQL 8.0, Nginx, and a self-contained
 Linux x64 API. Kestrel and MySQL listen only on loopback. Nginx exposes the
 approved collector routes on `127.0.0.1:5089` for the HTTPS tunnel.
 
-The API, database, gateway, dashboard login/CSRF flow, download range support,
-and automatic process recovery passed live tests before the controlled reboot
-test. The deployed agent SHA-256 is:
+The API, database, gateway, dashboard login/CSRF flow, CSV export, download range
+support, automatic process recovery, and public agent lifecycle passed live
+tests. The deployed agent SHA-256 is:
 
 ```text
 584191dee021923da0253c1412d78c319a051b674e66c83cfc84af2f4f3e1ee5
@@ -18,14 +18,22 @@ test. The deployed agent SHA-256 is:
 and keeps 14 days. The first backup completed successfully. The runtime database
 account has only SELECT, INSERT, UPDATE, and DELETE after migrations.
 
-The old `.46` host was unavailable during this deployment, so its database and
-ngrok credential could not be copied. The replacement database was initialized
-empty. Do not treat the migration as complete until the old database is restored
-or IT explicitly accepts a fresh inventory, and the ngrok tunnel is active.
+The old `.46` host was unavailable. IT explicitly chose a fresh database instead
+of restoring the old records. Previously registered PCs therefore need to run
+the current download once to receive credentials for this server.
 
-The controlled reboot test passed: SSH, MySQL, Nginx, the API, gateway, and
-backup timer returned automatically. A forced-process failure test also passed;
-systemd restarted the API and health recovered without intervention.
+The controlled reboot test passed: MySQL, Nginx, the API, gateway, ngrok tunnel,
+and backup timer returned automatically. Public health recovered in about four
+minutes. A forced-process failure test also passed; systemd restarted the API
+and health recovered without intervention. Restarting only the tunnel restored
+the public hostname immediately.
+
+Public acceptance covered inventory intake, agent enrollment, heartbeat,
+approved support-command delivery/result, disable, re-enable, complete removal,
+dashboard login, device details, CSV export, mobile layout, and logout. Synthetic
+records were deleted afterward, leaving the fresh production database empty.
+The complete 76,696,629-byte agent was downloaded through the public hostname;
+its SHA-256 matched the server and local release.
 
 > Current release and validation: [Registration management 1.2](REGISTRATION.md). The notes below retain the initial deployment history.
 
