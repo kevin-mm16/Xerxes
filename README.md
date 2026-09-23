@@ -1,4 +1,4 @@
-> Current deployed release: [Combined registration, heartbeat, location and approved PowerShell support](deployment/REGISTRATION.md). Release 1.3 adds the branded check-in window and disable/uninstall actions, and replaces the separate downloads and optional-enable flow described in the original implementation notes below.
+> Production remains on release 1.3.1. Release 1.4 is available on isolated [dashboard](https://uphill-cofounder-trident.ngrok-free.dev/device-admin/preview) and [registration](https://uphill-cofounder-trident.ngrok-free.dev/device-registration-preview) preview routes for acceptance testing. See [the deployment record](deployment/DEPLOYED.md).
 
 # MiLife Device Inventory Collector
 

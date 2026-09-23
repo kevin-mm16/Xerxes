@@ -67,6 +67,7 @@ window.renderManagement = function renderManagementPreview(body, agents) {
   const error = node('p', undefined, 'error'); error.setAttribute('role', 'alert');
   const history = node('div', undefined, 'command-history');
   support.append(historyHeader, error, history); body.append(support);
+  body.prepend(support); support.after(location);
 
   let catalog = [];
   let selectedTemplate = null;
@@ -150,3 +151,5 @@ window.renderManagement = function renderManagementPreview(body, agents) {
   api('commands/catalog').then(data => { catalog = data.items; renderCatalog(); updateReadiness(); }).catch(exception => { error.textContent = exception.message; });
   updateReadiness(); loadHistory();
 };
+
+document.documentElement.dataset.previewReady = 'true';

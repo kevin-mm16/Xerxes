@@ -12,7 +12,9 @@ if($Action -eq 'Accept'){
     (Find-Name 'Accept and continue').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
 }
 if($Action -in @('Blank','Register')){
-    $box=Find-Name 'Your full name'
+    $box=$window.FindFirst([System.Windows.Automation.TreeScope]::Descendants,(New-Object System.Windows.Automation.AndCondition(
+        (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty,'Your full name')),
+        (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty,[System.Windows.Automation.ControlType]::Edit)))))
     $name=if($Action -eq 'Blank'){''}else{'IT Acceptance Test'}
     $box.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($name)
     (Find-Name 'Check in').GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()

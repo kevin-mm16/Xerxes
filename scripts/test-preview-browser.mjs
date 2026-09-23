@@ -23,13 +23,13 @@ try{
   socket.onmessage=event=>{const data=JSON.parse(event.data);if(data.id){const item=pending.get(data.id);pending.delete(data.id);if(data.error)item?.reject(new Error(data.error.message));else item?.resolve(data.result);}else if(data.method==='Runtime.exceptionThrown')runtimeErrors.push(data.params.exceptionDetails.exception?.description||data.params.exceptionDetails.text);};
   const send=(method,params={})=>new Promise((resolve,reject)=>{const id=++sequence;pending.set(id,{resolve,reject});socket.send(JSON.stringify({id,method,params}));});
   const evaluate=async expression=>{const response=await send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(response.exceptionDetails)throw new Error(response.exceptionDetails.exception?.description||'Browser evaluation failed.');return response.result.value;};
-  const waitFor=async(expression,description,attempts=80)=>{for(let i=0;i<attempts;i++){if(await evaluate(expression))return;await sleep(500);}throw new Error('Timed out waiting for '+description);};
+  const waitFor=async(expression,description,attempts=80)=>{for(let i=0;i<attempts;i++){if(await evaluate(expression))return;await sleep(500);}const state=await evaluate('JSON.stringify({url:location.href,login:document.getElementById("login-error")?.textContent,page:document.getElementById("page-error")?.textContent,body:document.body?.innerText?.slice(0,800)})');throw new Error('Timed out waiting for '+description+': '+state);};
   const screenshot=async name=>writeFile(path.join(directory,name),Buffer.from((await send('Page.captureScreenshot',{format:'png'})).data,'base64'));
   await send('Runtime.enable');await send('Network.enable');
   await send('Network.setExtraHTTPHeaders',{headers:{'ngrok-skip-browser-warning':'true'}});
   await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1100,deviceScaleFactor:1,mobile:false});
   await send('Page.navigate',{url:base+'/device-admin/preview'});
-  await waitFor('Boolean(document.querySelector("[name=username]"))','preview login');
+  await waitFor('document.documentElement?.dataset.previewReady==="true" && typeof state!=="undefined" && Boolean(state.csrf) && Boolean(document.querySelector("[name=username]"))','preview login');
   await evaluate(`document.querySelector('[name=username]').value='root';document.querySelector('[name=password]').value=${JSON.stringify(password)};document.getElementById('login-form').requestSubmit();`);
   await waitFor('Boolean(!document.getElementById("workspace").hidden && document.querySelector("#device-rows tr"))','device list');
   if(!await evaluate('document.querySelector(".preview-pill")?.textContent==="PREVIEW"'))throw new Error('Preview marker missing.');
@@ -39,6 +39,7 @@ try{
   await evaluate('document.querySelector("#device-rows button").click()');
   await waitFor('document.querySelectorAll(".command-card").length>=6','command catalogue');
   if(!await evaluate('document.querySelector(".support-readiness")?.textContent==="Silent support ready"'))throw new Error('Silent-support readiness was not shown.');
+  await evaluate('document.querySelector(".support-workspace").scrollIntoView({block:"start"})');await sleep(300);
   await screenshot('preview-support.png');
   await evaluate('document.querySelector(".command-card").click();document.querySelector(".mode-row .primary").click()');
   await waitFor('document.querySelector(".command-status")?.textContent==="Queued"','queued command');

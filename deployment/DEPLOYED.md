@@ -1,5 +1,33 @@
 > Dedicated production server: `172.26.50.221`. Release 1.3.1 and the existing public hostname were activated on 2026-09-23.
 
+## Isolated 1.4 preview — 2026-09-23
+
+Production registration, dashboard and download routes still serve release 1.3.1. The
+consent-first agent and command workspace are staged separately:
+
+- Dashboard preview: https://uphill-cofounder-trident.ngrok-free.dev/device-admin/preview
+- Registration preview: https://uphill-cofounder-trident.ngrok-free.dev/device-registration-preview
+- Agent preview: https://uphill-cofounder-trident.ngrok-free.dev/download/device-agent-preview
+
+Agent 1.4 shows the management and privacy notice before collecting inventory. After
+acceptance it requests the employee name, installs the per-user background agent and
+records the notice version/time. The dashboard supplies six server-owned diagnostic
+templates, an advanced PowerShell editor, explicit silent/approval modes, command
+history, results and cancellation. Silent execution requires agent 1.4 plus the current
+recorded consent and remains non-elevated with a 60-second execution limit.
+
+The preview deployment backed up the database and API before applying its additive
+MySQL migration. Runtime database permissions were returned to SELECT, INSERT, UPDATE
+and DELETE. Production agent SHA-256 remains
+`584191dee021923da0253c1412d78c319a051b674e66c83cfc84af2f4f3e1ee5`; preview agent
+SHA-256 is `fd253106a462c5c12834cf4fe64888c19371ece4e7352e215e1ea3f5ec4159f5`.
+
+Validation passed with 68 automated tests, real Edge desktop/mobile checks, command
+queue/cancellation, a real non-elevated silent PowerShell execution with no approval
+window, and server-directed removal of the acceptance-test installation. Test agents,
+commands and synthetic device records were removed afterward. Promotion to the normal
+URLs is intentionally pending user acceptance of the preview.
+
 ## Dedicated replacement deployment — 2026-09-23
 
 The replacement host runs Ubuntu 22.04, MySQL 8.0, Nginx, and a self-contained
