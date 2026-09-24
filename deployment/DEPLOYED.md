@@ -1,4 +1,34 @@
-> Dedicated production server: `172.26.50.221`. Release 1.3.1 and the existing public hostname were activated on 2026-09-23.
+> Dedicated production server: `172.26.50.221`. Release 1.4 and the existing public hostname were activated on 2026-09-24.
+
+## Release 1.4 production and React preview — 2026-09-24
+
+The accepted consent-first preview is now the production registration flow, dashboard,
+command framework and Windows agent:
+
+- Production dashboard: https://uphill-cofounder-trident.ngrok-free.dev/device-admin
+- Production registration: https://uphill-cofounder-trident.ngrok-free.dev/device-registration
+- Production agent: https://uphill-cofounder-trident.ngrok-free.dev/download/device-agent
+- React dashboard preview: https://uphill-cofounder-trident.ngrok-free.dev/device-admin/react-preview
+
+The React preview uses the existing authenticated API and includes the MiLife logo,
+responsive device workspace, device detail drawer, lifecycle actions, inventory review,
+the command catalogue, advanced PowerShell and command activity. An authenticated
+server-sent event stream requests a refresh every ten seconds. A 30-second client timer
+continues automatic refresh if the stream disconnects.
+
+The production and preview Windows downloads now contain the same accepted 1.4 build.
+SHA-256:
+
+```text
+fd253106a462c5c12834cf4fe64888c19371ece4e7352e215e1ea3f5ec4159f5
+```
+
+Promotion created the rollback backup
+`/var/backups/milife-promotion/20260924T103819Z`. Server verification confirmed the
+API, Nginx, ngrok, registration, production dashboard, React assets, download hashes and
+restricted runtime database grants. Public validation confirmed the production download
+range against the local release and exercised React login, logo loading, live updates,
+device rendering, support details and mobile layout in Edge. All 69 .NET tests passed.
 
 ## Isolated 1.4 preview — 2026-09-23
 
@@ -26,7 +56,7 @@ Validation passed with 68 automated tests, real Edge desktop/mobile checks, comm
 queue/cancellation, a real non-elevated silent PowerShell execution with no approval
 window, and server-directed removal of the acceptance-test installation. Test agents,
 commands and synthetic device records were removed afterward. Promotion to the normal
-URLs is intentionally pending user acceptance of the preview.
+URLs was completed after user acceptance on 2026-09-24, as recorded above.
 
 ## Dedicated replacement deployment — 2026-09-23
 

@@ -411,6 +411,20 @@ public sealed class ApiTests : IDisposable
     }
 
     [Fact]
+    public async Task ReactDashboardPreviewAndHashedAssetsAreServed()
+    {
+        using var client = Client();
+        var page = await client.GetStringAsync("/device-admin/react-preview");
+        Assert.Contains("MiLife | Device operations", page);
+        var match = System.Text.RegularExpressions.Regex.Match(page, "src=\"(?<path>/device-admin-react-preview/assets/[^\"]+\\.js)\"");
+        Assert.True(match.Success);
+        var script = await client.GetStringAsync(match.Groups["path"].Value);
+        Assert.Contains("Live updates connected", script);
+        using var denied = await client.GetAsync("/device-admin/api/events", HttpCompletionOption.ResponseHeadersRead);
+        Assert.Equal(HttpStatusCode.Unauthorized, denied.StatusCode);
+    }
+
+    [Fact]
     public async Task ExpiredAndRevokedSupportCannotRun()
     {
         var (device, enrollment) = await ManagedAgent(); using var owner = device; using var admin = await DashboardClient();

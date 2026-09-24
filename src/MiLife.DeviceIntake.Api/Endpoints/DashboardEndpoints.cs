@@ -21,6 +21,9 @@ public static class DashboardEndpoints
             Path.Combine(environment.ContentRootPath, "wwwroot", "device-admin", "index.html"), "text/html; charset=utf-8"));
         app.MapGet("/device-admin/preview", (IWebHostEnvironment environment) => Results.File(
             Path.Combine(environment.ContentRootPath, "wwwroot", "device-admin-preview", "index.html"), "text/html; charset=utf-8"));
+        app.MapGet("/device-admin/react-preview", (IWebHostEnvironment environment) => Results.File(
+            Path.Combine(environment.ContentRootPath, "wwwroot", "device-admin-react-preview", "index.html"), "text/html; charset=utf-8"));
+        app.MapGet("/device-admin/api/events", StreamEventsAsync);
         app.MapGet("/device-admin/api/session", (HttpContext context, IAntiforgery antiforgery) =>
             Results.Ok(new { authenticated = context.User.Identity?.IsAuthenticated == true,
                 username = context.User.Identity?.Name, csrfToken = antiforgery.GetAndStoreTokens(context).RequestToken }));
@@ -41,6 +44,21 @@ public static class DashboardEndpoints
         });
         app.MapGet("/device-admin/api/devices", (IntakeDbContext db, string? search, string? status, int? page, CancellationToken ct) => ListDevicesAsync(db, search, status, page, ct));
         app.MapGet("/device-admin/api/devices/export", (IntakeDbContext db, string? search, string? status, CancellationToken ct) => ListDevicesAsync(db, search, status, null, ct, true));
+    }
+
+    private static async Task StreamEventsAsync(HttpContext context, CancellationToken ct)
+    {
+        context.Response.ContentType = "text/event-stream";
+        context.Response.Headers.CacheControl = "no-cache, no-store";
+        context.Response.Headers["X-Accel-Buffering"] = "no";
+        await context.Response.WriteAsync("retry: 5000\n\n", ct);
+        await context.Response.Body.FlushAsync(ct);
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(10));
+        while (await timer.WaitForNextTickAsync(ct))
+        {
+            await context.Response.WriteAsync($"event: refresh\ndata: {DateTimeOffset.UtcNow.ToUnixTimeSeconds()}\n\n", ct);
+            await context.Response.Body.FlushAsync(ct);
+        }
     }
 
     private static async Task<IResult> ListDevicesAsync(IntakeDbContext db, string? search, string? status, int? page, CancellationToken ct, bool export = false)

@@ -1,4 +1,4 @@
-> Production remains on release 1.3.1. Release 1.4 is available on isolated [dashboard](https://uphill-cofounder-trident.ngrok-free.dev/device-admin/preview) and [registration](https://uphill-cofounder-trident.ngrok-free.dev/device-registration-preview) preview routes for acceptance testing. See [the deployment record](deployment/DEPLOYED.md).
+> Production runs release 1.4. The accepted operations dashboard is live at [device admin](https://uphill-cofounder-trident.ngrok-free.dev/device-admin), and the React rebuild is isolated at [React preview](https://uphill-cofounder-trident.ngrok-free.dev/device-admin/react-preview). See [the deployment record](deployment/DEPLOYED.md).
 
 # MiLife Device Inventory Collector
 
@@ -52,6 +52,22 @@ dotnet test MiLife.DeviceInventory.sln --configuration Release
 ```
 
 Tests use temporary SQLite databases and synthetic devices; they do not collect real hardware. HTTP retry tests use mocked handlers, while API integration tests exercise the full ASP.NET Core pipeline and EF migrations. Tests cover normalization, validation, tokens, malformed/oversized JSON, missing serials, repeat devices, concurrent intake, idempotency, rate limiting, HTTPS enforcement, review auditing, recovery files, and retry behavior.
+
+### Build the React dashboard
+
+The React and TypeScript source is in `src/MiLife.DeviceIntake.Dashboard`. Its Vite build
+writes hashed static assets directly to the API's
+`wwwroot/device-admin-react-preview` directory.
+
+```powershell
+cd src\MiLife.DeviceIntake.Dashboard
+npm.cmd ci
+npm.cmd run build
+```
+
+The preview uses the existing cookie and CSRF-protected dashboard API. Its authenticated
+server-sent event stream refreshes visible data every ten seconds, with a 30-second timer
+as a fallback.
 
 ### Start locally with HTTPS
 
