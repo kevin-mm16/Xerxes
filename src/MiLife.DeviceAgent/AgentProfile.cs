@@ -9,6 +9,7 @@ public sealed class AgentProfile
     public Guid AgentId { get; set; } = Guid.NewGuid();
     public string DeviceToken { get; set; } = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
     public Guid SubmissionId { get; set; }
+    public int InventorySchemaVersion { get; set; }
     public string SerialNumber { get; set; } = "";
     public bool Enabled { get; set; }
     public string EmployeeName { get; set; } = "";

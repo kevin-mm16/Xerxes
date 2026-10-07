@@ -45,8 +45,25 @@ public sealed class AgentApi(CollectorSettings settings, LocalFiles logs) : IDis
             if (!result.Success || result.Receipt is null) throw new InvalidOperationException(result.Message);
             profile.SubmissionId = result.Receipt.SubmissionId; profile.SerialNumber = result.Receipt.SerialNumber;
             profile.PendingInventory = null;
+            profile.InventorySchemaVersion = inventory.DeviceType is null ? 0 : 1;
             store.Save(profile);
         }
+    }
+
+    public async Task RefreshInventoryAsync(AgentProfile profile, ProfileStore store)
+    {
+        if (profile.InventorySchemaVersion >= 1) return;
+        var inventory = profile.PendingInventory ?? await Task.Run(() => new WindowsHardwareCollector(settings, logs).Collect("UNKNOWN"));
+        // Keep the same collection ID after transport failures; do not create duplicate history on retries.
+        profile.PendingInventory = inventory; store.Save(profile);
+        if (!string.Equals(inventory.SerialNumber?.Trim(), profile.SerialNumber, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Hardware identity changed. Contact IT before collecting again.");
+        var result = await new SubmissionClient(http, settings, logs, new RetryDelay()).SubmitAsync(inventory);
+        if (!result.Success || result.Receipt is null) throw new InvalidOperationException(result.Message);
+        profile.SubmissionId = result.Receipt.SubmissionId;
+        profile.CollectionId = inventory.CollectionId;
+        profile.InventorySchemaVersion = inventory.DeviceType is null ? 0 : 1;
+        profile.PendingInventory = null; store.Save(profile);
     }
 
     public async Task EnableAsync(AgentProfile profile, ProfileStore store)

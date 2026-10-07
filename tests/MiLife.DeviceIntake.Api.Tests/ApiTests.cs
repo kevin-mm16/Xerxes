@@ -182,6 +182,79 @@ public sealed class ApiTests : IDisposable
         Assert.Contains("Click to download", await client.GetStringAsync("/device-registration"));
     }
 
+    [Fact]
+    public async Task DeviceTypeFiltersUseLatestInventoryAndMatchCsv()
+    {
+        using var intake = Client();
+        using var first = await Send(intake, Payload("TYPE-1") with { DeviceType = "Desktop" });
+        using var second = await Send(intake, Payload("TYPE-1") with { DeviceType = "Laptop" });
+        using var legacy = await Send(intake, Payload("TYPE-2"));
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode); Assert.Equal(HttpStatusCode.OK, second.StatusCode);
+        using var admin = await DashboardClient();
+        var laptops = await admin.GetFromJsonAsync<JsonElement>("/device-admin/api/devices?deviceType=Laptop&availability=NotEnrolled");
+        Assert.Equal(1, laptops.GetProperty("total").GetInt32());
+        Assert.Equal("Laptop", laptops.GetProperty("items")[0].GetProperty("deviceType").GetString());
+        var desktops = await admin.GetFromJsonAsync<JsonElement>("/device-admin/api/devices?deviceType=Desktop");
+        Assert.Equal(0, desktops.GetProperty("total").GetInt32());
+        var unknown = await admin.GetFromJsonAsync<JsonElement>("/device-admin/api/devices?deviceType=Unknown");
+        Assert.Equal("TYPE-2", unknown.GetProperty("items")[0].GetProperty("serialNumber").GetString());
+        var csv = await admin.GetStringAsync("/device-admin/api/devices/export?deviceType=Laptop&availability=NotEnrolled");
+        Assert.Contains("TYPE-1", csv); Assert.DoesNotContain("TYPE-2", csv); Assert.Contains("Device type", csv);
+        var online = await admin.GetFromJsonAsync<JsonElement>("/device-admin/api/devices?availability=Online");
+        Assert.Equal(0, online.GetProperty("total").GetInt32());
+    }
+
+    [Theory]
+    [InlineData("deviceType=Phone")]
+    [InlineData("availability=Broken")]
+    public async Task InvalidDashboardFiltersAreRejected(string query)
+    {
+        using var admin = await DashboardClient();
+        using var response = await admin.GetAsync("/device-admin/api/devices?" + query);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task InvalidDeviceTypeIsRejectedAndLegacyCanonicalJsonIsUnchanged()
+    {
+        using var intake = Client();
+        using var response = await Send(intake, Payload() with { DeviceType = "Phone" });
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.DoesNotContain("deviceType", JsonSerializer.Serialize(Payload(), InventoryJson.Options));
+    }
+
+    [Fact]
+    public async Task ServerHealthAndCommandActivityRequireDashboardAuthentication()
+    {
+        using var outsider = Client(true);
+        foreach (var route in new[] { "server-health", "commands" })
+        {
+            using var denied = await outsider.GetAsync("/device-admin/api/" + route);
+            Assert.Equal(HttpStatusCode.Unauthorized, denied.StatusCode);
+        }
+        using var admin = await DashboardClient();
+        var health = await admin.GetFromJsonAsync<JsonElement>("/device-admin/api/server-health");
+        Assert.True(health.GetProperty("databaseHealthy").GetBoolean());
+        Assert.Contains(health.GetProperty("backupStatus").GetString(), new[] { "Missing", "Not configured" });
+        Assert.True(health.GetProperty("apiMemoryBytes").GetInt64() > 0);
+    }
+
+    [Fact]
+    public async Task GlobalCommandHistoryRetainsResultsAndAgentIdentity()
+    {
+        var (device, enrollment) = await ManagedAgent(); using var owner = device;
+        using var admin = await DashboardClient();
+        using var queued = await admin.PostAsJsonAsync($"/device-admin/api/agents/{enrollment.AgentId}/commands", new SupportRequest("Get-Date"));
+        Assert.Equal(HttpStatusCode.OK, queued.StatusCode);
+        var created = await queued.Content.ReadFromJsonAsync<JsonElement>();
+        var history = await admin.GetFromJsonAsync<JsonElement>("/device-admin/api/commands");
+        var job = history.GetProperty("items")[0];
+        Assert.Equal(enrollment.AgentId, job.GetProperty("agentId").GetGuid());
+        Assert.Equal(created.GetProperty("id").GetGuid(), job.GetProperty("id").GetGuid());
+        Assert.Equal("Get-Date", job.GetProperty("script").GetString());
+        Assert.Equal("Queued", job.GetProperty("status").GetString());
+    }
+
     public void Dispose() => factory.Dispose();
 
     private async Task<HttpClient> DashboardClient()
@@ -207,7 +280,7 @@ public sealed class ApiTests : IDisposable
         using var client = Client();
         using var response = await client.GetAsync(path);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Contains("login-form", await response.Content.ReadAsStringAsync());
+        Assert.Contains("/device-admin-react-preview/assets/", await response.Content.ReadAsStringAsync());
         Assert.Contains("script-src 'self'", response.Headers.GetValues("Content-Security-Policy").Single());
     }
 

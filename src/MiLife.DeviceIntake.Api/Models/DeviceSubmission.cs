@@ -20,6 +20,7 @@ public sealed class DeviceSubmission
     public string? LoggedInUser { get; set; }
     public string? Manufacturer { get; set; }
     public string? Model { get; set; }
+    public string DeviceType { get; set; } = "Unknown";
     public string? ProcessorJson { get; set; }
     public double? RamGB { get; set; }
     public string? RamJson { get; set; }

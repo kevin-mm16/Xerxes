@@ -162,6 +162,13 @@ namespace MiLife.DeviceIntake.Api.Data.Migrations
                     b.Property<string>("ComputerName")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("DeviceType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("Unknown");
+
                     b.Property<string>("DisksJson")
                         .HasColumnType("TEXT");
 
@@ -223,6 +230,8 @@ namespace MiLife.DeviceIntake.Api.Data.Migrations
                         .IsUnique();
 
                     b.HasIndex("ComputerName");
+
+                    b.HasIndex("DeviceType");
 
                     b.HasIndex("SerialNumber", "ReceivedAtUtc");
 

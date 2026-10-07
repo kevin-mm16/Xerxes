@@ -9,6 +9,9 @@ public sealed record DeviceInventory
     public string? LoggedInUser { get; init; }
     public string? Manufacturer { get; init; }
     public string? Model { get; init; }
+    // Omit absent values so retries of older payloads retain their canonical hash.
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? DeviceType { get; init; }
     public string? SerialNumber { get; init; }
     public ProcessorInfo? Processor { get; init; }
     public MemoryInfo? Ram { get; init; }

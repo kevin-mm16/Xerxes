@@ -62,6 +62,8 @@ public class IntakeDbContext : DbContext
             entity.HasIndex(s => new { s.Status, s.ReceivedAtUtc });
             entity.HasIndex(s => s.ComputerName);
             entity.HasIndex(s => s.BranchCode);
+            entity.Property(s => s.DeviceType).HasMaxLength(16).HasDefaultValue("Unknown");
+            entity.HasIndex(s => s.DeviceType);
             entity.Property(s => s.SerialNumber).HasMaxLength(128);
             entity.Property(s => s.BranchCode).HasMaxLength(32);
             entity.Property(s => s.Status).HasConversion<string>();

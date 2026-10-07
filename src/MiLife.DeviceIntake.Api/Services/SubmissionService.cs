@@ -58,6 +58,7 @@ public sealed class SubmissionService(IntakeDbContext db, TimeProvider clock)
             Id = Guid.NewGuid(), CollectionId = data.CollectionId, PayloadHash = hash, SerialNumber = serial,
             Device = device, BranchCode = data.BranchCode.ToUpperInvariant(), ComputerName = data.ComputerName,
             LoggedInUser = data.LoggedInUser, Manufacturer = data.Manufacturer, Model = data.Model,
+            DeviceType = data.DeviceType ?? "Unknown",
             ProcessorJson = JsonSerializer.Serialize(data.Processor, InventoryJson.Options), RamGB = data.Ram?.TotalGB,
             RamJson = JsonSerializer.Serialize(data.Ram, InventoryJson.Options), DisksJson = JsonSerializer.Serialize(data.Disks, InventoryJson.Options),
             WindowsJson = JsonSerializer.Serialize(data.Windows, InventoryJson.Options), NetworkJson = JsonSerializer.Serialize(data.NetworkAdapters, InventoryJson.Options),

@@ -184,6 +184,11 @@ public sealed class AgentForm : Form
         try
         {
             var response = await api.SendAsync(profile);
+            if (response == HttpStatusCode.OK && HasCurrentConsent && profile.InventorySchemaVersion < 1)
+            {
+                try { await api.RefreshInventoryAsync(profile, store); }
+                catch (Exception ex) { logs.Log("InventoryRefreshFailed", ex.GetType().Name); }
+            }
             if (!Registered) return;
             if (response is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
             {
@@ -202,7 +207,7 @@ public sealed class AgentForm : Form
 
     private async Task SupportAsync()
     {
-        if (!Registered || supporting) return;
+        if (!Registered || supporting || sending) return;
         if (await HandleActionAsync()) return;
         supporting = true;
         try

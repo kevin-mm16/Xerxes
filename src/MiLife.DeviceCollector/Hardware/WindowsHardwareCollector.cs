@@ -51,7 +51,9 @@ public sealed class WindowsHardwareCollector(CollectorSettings settings, LocalFi
 
     public DeviceInventory Collect(string branchCode)
     {
-        var system = Query("Win32_ComputerSystem", "Manufacturer,Model,UserName,TotalPhysicalMemory").FirstOrDefault();
+        var system = Query("Win32_ComputerSystem", "Manufacturer,Model,UserName,TotalPhysicalMemory,PCSystemType").FirstOrDefault();
+        var chassis = Query("Win32_SystemEnclosure", "ChassisTypes")
+            .SelectMany(row => row.GetValueOrDefault("ChassisTypes") is ushort[] values ? values : Array.Empty<ushort>()).ToArray();
         var bios = Query("Win32_BIOS", "SerialNumber").FirstOrDefault();
         var cpus = Query("Win32_Processor", "Manufacturer,Name,NumberOfCores,NumberOfLogicalProcessors");
         var modules = Query("Win32_PhysicalMemory", "Capacity,Manufacturer,PartNumber,Speed")
@@ -107,6 +109,7 @@ public sealed class WindowsHardwareCollector(CollectorSettings settings, LocalFi
             CollectionId = Guid.NewGuid(), CollectorVersion = settings.CollectorVersion, BranchCode = branchCode,
             ComputerName = Environment.MachineName, LoggedInUser = Text(system, "UserName") ?? Environment.UserName,
             Manufacturer = Text(system, "Manufacturer"), Model = Text(system, "Model"), SerialNumber = Text(bios, "SerialNumber"),
+            DeviceType = DeviceClassification.Classify(chassis, Integer(system, "PCSystemType")),
             Processor = new ProcessorInfo(CpuNames("Manufacturer"), CpuNames("Name"), SumCpu("NumberOfCores"), SumCpu("NumberOfLogicalProcessors")),
             Ram = new MemoryInfo(modules.Count > 0 && modules.All(m => m.CapacityGB is not null)
                 ? Math.Round(modules.Sum(m => m.CapacityGB!.Value), 2) : RamGB(Number(system, "TotalPhysicalMemory")), modules),

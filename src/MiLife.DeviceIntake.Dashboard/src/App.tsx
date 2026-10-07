@@ -1,9 +1,10 @@
 import { FormEvent, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { CommandActivity, ScriptRunner, ServerHealth } from './Operations';
 
 type Json = Record<string, any>;
 type Device = {
   id: string; serialNumber: string; computerName?: string; employeeName?: string; manufacturer?: string;
-  model?: string; ramGB?: number; status: string; availability: string; receivedAtUtc: string;
+  model?: string; deviceType: string; ramGB?: number; status: string; availability: string; receivedAtUtc: string;
   lastHeartbeatUtc?: string; submissionCount: number;
 };
 type Agent = {
@@ -93,7 +94,7 @@ function Login({ onLogin, message }: { onLogin: (username: string, password: str
       <small>Internal IT workspace</small>
     </section>
     <section className="login-card"><form onSubmit={submit}>
-      <span className="eyebrow">REACT PREVIEW</span><h2>Sign in</h2><p className="muted">Use your device administrator account.</p>
+      <span className="eyebrow">ADMIN PORTAL</span><h2>Sign in</h2><p className="muted">Use your device administrator account.</p>
       <label>Username<input name="username" defaultValue="root" autoComplete="username" maxLength={128} required /></label>
       <label>Password<input name="password" type="password" autoComplete="current-password" maxLength={1024} required autoFocus /></label>
       {error && <p className="error" role="alert">{error}</p>}
@@ -109,24 +110,32 @@ function Dashboard({ api, username, logout, liveTick, connection, notify }: { ap
   const [draft, setDraft] = useState(''); const [status, setStatus] = useState(''); const [loading, setLoading] = useState(true);
   const [error, setError] = useState(''); const [selected, setSelected] = useState<Device>(); const [lastUpdated, setLastUpdated] = useState<Date>();
   const requestId = useRef(0);
+  const [deviceType, setDeviceType] = useState(''); const [availability, setAvailability] = useState('');
+  const [view, setView] = useState<'devices' | 'commands' | 'health'>('devices');
+  const [checked, setChecked] = useState<Set<string>>(new Set());
+  const [scriptTargets, setScriptTargets] = useState<Device[]>();
+  const closeRunner = useCallback(() => setScriptTargets(undefined), []);
+  const checkedDevices = devices.filter(device => checked.has(device.serialNumber));
+  function toggleDevice(serial: string) { setChecked(previous => { const next = new Set(previous); if (next.has(serial)) next.delete(serial); else next.add(serial); return next; }); }
 
   const load = useCallback(async () => {
     const id = ++requestId.current; setLoading(true); setError('');
     try {
-      const params = new URLSearchParams({ page: String(page), search: query, status });
+      const params = new URLSearchParams({ page: String(page), search: query, status, deviceType, availability });
       const data = await api('devices?' + params);
       if (id !== requestId.current) return;
       setDevices(data.items); setSummary(data.summary); setTotal(data.total); setLastUpdated(new Date());
     } catch (exception) { if (id === requestId.current) setError((exception as Error).message); }
     finally { if (id === requestId.current) setLoading(false); }
-  }, [api, page, query, status]);
+  }, [api, page, query, status, deviceType, availability]);
 
-  useEffect(() => { load(); }, [load, liveTick]);
+  useEffect(() => { if (view === 'devices') load(); }, [load, liveTick, view]);
+  useEffect(() => { setChecked(new Set()); }, [page, query, status, deviceType, availability]);
   useEffect(() => { const visible = () => { if (!document.hidden) load(); }; document.addEventListener('visibilitychange', visible); return () => document.removeEventListener('visibilitychange', visible); }, [load]);
 
   async function exportCsv() {
     try {
-      const params = new URLSearchParams({ search: query, status });
+      const params = new URLSearchParams({ search: query, status, deviceType, availability });
       const response = await fetch('/device-admin/api/devices/export?' + params, { credentials: 'same-origin' });
       if (!response.ok) throw new Error('Export failed. Please try again.');
       const url = URL.createObjectURL(await response.blob()); const link = document.createElement('a');
@@ -137,14 +146,22 @@ function Dashboard({ api, username, logout, liveTick, connection, notify }: { ap
 
   return <div className="shell">
     <aside className="sidebar">
-      <a href="/device-admin/react-preview" className="logo"><img src="/device-admin/milife-logo.png" alt="MiLife Insurance" /></a>
-      <nav><span className="nav-label">WORKSPACE</span><a className="nav-active" href="/device-admin/react-preview"><span>▦</span> Devices & support</a><a href="/device-registration" target="_blank"><span>↓</span> PC check-in</a></nav>
+      <a href="/device-admin" className="logo"><img src="/device-admin/milife-logo.png" alt="MiLife Insurance" /></a>
+      <nav><span className="nav-label">WORKSPACE</span>
+        <button className={view === 'devices' ? 'nav-active' : ''} onClick={() => setView('devices')}><span aria-hidden="true">▦</span> Devices</button>
+        <button className={view === 'commands' ? 'nav-active' : ''} onClick={() => setView('commands')}><span aria-hidden="true">›_</span> Script activity</button>
+        <button className={view === 'health' ? 'nav-active' : ''} onClick={() => setView('health')}><span aria-hidden="true">♡</span> Server health</button>
+        <a href="/device-registration" target="_blank" rel="noreferrer"><span aria-hidden="true">↓</span> PC check-in</a>
+      </nav>
       <div className="account"><span className="avatar">IT</span><div><strong>{username}</strong><small>Administrator</small></div><button className="icon-button" onClick={logout} title="Sign out">↪</button></div>
     </aside>
     <main className="content">
       <header className="topbar"><div><span className={`live-dot ${connection}`} />{connection === 'live' ? 'Live updates connected' : 'Automatic refresh active'}</div><span>{lastUpdated ? `Updated ${lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : 'Updating…'}</span></header>
       <div className="page">
-        <header className="page-title"><div><span className="eyebrow">DEVICE OPERATIONS</span><h1>Company devices</h1><p className="muted">Live inventory, availability and remote support.</p></div><a className="button primary" href="/device-registration" target="_blank">+ Check in a PC</a></header>
+        <header className="page-title"><div><span className="eyebrow">DEVICE OPERATIONS</span><h1>{view === 'devices' ? 'Company devices' : view === 'commands' ? 'Script activity' : 'Server health'}</h1><p className="muted">Live inventory, availability and remote support.</p></div><a className="button primary" href="/device-registration" target="_blank">+ Check in a PC</a></header>
+        {view === 'commands' && <CommandActivity api={api} liveTick={liveTick} />}
+        {view === 'health' && <ServerHealth api={api} liveTick={liveTick} />}
+        {view === 'devices' && <>
         <section className="metrics">
           <Metric label="Registered devices" count={summary.devices} hint="Unique hardware" icon="▣" />
           <Metric label="Online agents" count={summary.online} hint="Seen in 15 minutes" icon="●" tone="teal" />
@@ -156,12 +173,18 @@ function Dashboard({ api, username, logout, liveTick, connection, notify }: { ap
           <form className="filters" onSubmit={event => { event.preventDefault(); setPage(1); setQuery(draft.trim()); }}>
             <label className="search"><span>⌕</span><input value={draft} onChange={event => setDraft(event.target.value)} placeholder="Search computer, serial number or employee…" maxLength={256} aria-label="Search devices" /></label>
             <select value={status} onChange={event => { setPage(1); setStatus(event.target.value); }} aria-label="Review status"><option value="">All review statuses</option><option value="PendingReview">Pending review</option><option value="Approved">Approved</option><option value="Matched">Matched</option><option value="Rejected">Rejected</option></select>
+            <select value={deviceType} onChange={event => { setPage(1); setDeviceType(event.target.value); }} aria-label="Device type"><option value="">All device types</option><option>Desktop</option><option>Laptop</option><option>Unknown</option></select>
+            <select value={availability} onChange={event => { setPage(1); setAvailability(event.target.value); }} aria-label="Availability"><option value="">All availability</option><option>Online</option><option>Offline</option><option>Disabled</option><option value="NotEnrolled">No heartbeat</option></select>
             <button className="button secondary">Search</button>
+            {(query || draft || status || deviceType || availability) && <button type="button" className="button secondary" onClick={() => { setDraft(''); setQuery(''); setStatus(''); setDeviceType(''); setAvailability(''); setPage(1); }}>Clear filters</button>}
           </form>
           {error && <p className="error" role="alert">{error}</p>}
-          <div className={`table-wrap ${loading ? 'loading' : ''}`}><table><thead><tr><th>Device</th><th>Serial / employee</th><th>Memory</th><th>Availability</th><th>Review</th><th>Last inventory</th><th /></tr></thead><tbody>
-            {devices.map(device => <tr key={device.id} onClick={() => setSelected(device)}>
+          {checkedDevices.length > 0 && <div className="selection-bar"><strong>{checkedDevices.length} device{checkedDevices.length === 1 ? '' : 's'} selected on this page</strong><div className="actions"><button className="button secondary" onClick={() => setChecked(new Set())}>Clear selection</button><button className="button primary" disabled={loading} onClick={() => setScriptTargets(checkedDevices)}>Run script</button></div></div>}
+          <div className={`table-wrap ${loading ? 'loading' : ''}`}><table><thead><tr><th><input type="checkbox" aria-label="Select all devices on this page" checked={devices.length > 0 && checkedDevices.length === devices.length} onChange={e => setChecked(new Set(e.target.checked ? devices.map(d => d.serialNumber) : []))} /></th><th>Device</th><th>Type</th><th>Serial / employee</th><th>Memory</th><th>Availability</th><th>Review</th><th>Last inventory</th><th /></tr></thead><tbody>
+            {devices.map(device => <tr key={device.id} className={checked.has(device.serialNumber) ? 'row-selected' : ''} onClick={() => setSelected(device)}>
+              <td onClick={event => event.stopPropagation()}><input type="checkbox" aria-label={`Select ${device.computerName || device.serialNumber}`} checked={checked.has(device.serialNumber)} onChange={() => toggleDevice(device.serialNumber)} /></td>
               <td><div className="device"><span className="device-icon">▣</span><div><strong>{device.computerName || 'Unnamed PC'}</strong><small>{[device.manufacturer, device.model].filter(Boolean).join(' · ') || 'Model unavailable'}</small></div></div></td>
+              <td><Badge tone={device.deviceType}>{device.deviceType}</Badge></td>
               <td><strong>{device.serialNumber}</strong><small>{device.employeeName || 'Name not recorded'}</small></td><td>{device.ramGB == null ? '—' : `${device.ramGB} GB`}</td>
               <td><Badge tone={device.availability}>{statusLabel(device.availability)}</Badge></td><td><Badge tone={device.status}>{statusLabel(device.status)}</Badge></td>
               <td>{date(device.receivedAtUtc)}<small>{device.submissionCount} submission{device.submissionCount === 1 ? '' : 's'}</small></td><td><button className="row-open" aria-label={`Open ${device.computerName || device.serialNumber}`}>→</button></td>
@@ -169,9 +192,11 @@ function Dashboard({ api, username, logout, liveTick, connection, notify }: { ap
           </tbody></table>{!loading && devices.length === 0 && <div className="empty"><span>▦</span><h3>No devices found</h3><p>Try another search or check in a company PC.</p></div>}</div>
           <footer className="pagination"><span>{total ? `${(page - 1) * 20 + 1}–${Math.min(page * 20, total)} of ${total} devices` : '0 devices'}</span><div><button className="button secondary" disabled={page === 1} onClick={() => setPage(value => value - 1)}>Previous</button><button className="button secondary" disabled={page * 20 >= total} onClick={() => setPage(value => value + 1)}>Next</button></div></footer>
         </section>
-        <p className="fine muted center">Availability reflects agent check-ins, not employee activity.</p>
+        <p className="fine muted center">Availability reflects agent check-ins, not employee activity. Unknown device types need a new inventory collection with the updated agent.</p>
+        </>}
       </div>
     </main>
+    {scriptTargets && <ScriptRunner devices={scriptTargets} api={api} close={closeRunner} showActivity={() => { setScriptTargets(undefined); setView('commands'); setChecked(new Set()); }} />}
     {selected && <DeviceDrawer device={selected} api={api} liveTick={liveTick} close={() => setSelected(undefined)} refreshDevices={load} />}
   </div>;
 }
@@ -208,7 +233,7 @@ function DeviceDrawer({ device, api, liveTick, close, refreshDevices }: { device
     {loading && <div className="drawer-loading"><span className="spinner" />Loading device…</div>}{error && <p className="error pad">{error}</p>}
     {detail && <div className="drawer-body">
       <Support agents={agents} catalog={catalog} api={api} />
-      <Section title="Computer"><SpecGrid values={[["Employee", device.employeeName], ["Computer name", hw?.computerName], ["Serial number", detail.serialNumber], ["Manufacturer", hw?.manufacturer], ["Model", hw?.model], ["Windows user", hw?.loggedInUser], ["Last inventory", date(detail.receivedAtUtc)]]} /></Section>
+      <Section title="Computer"><SpecGrid values={[["Device type", hw?.deviceType || "Unknown"], ["Employee", device.employeeName], ["Computer name", hw?.computerName], ["Serial number", detail.serialNumber], ["Manufacturer", hw?.manufacturer], ["Model", hw?.model], ["Windows user", hw?.loggedInUser], ["Last inventory", date(detail.receivedAtUtc)]]} /></Section>
       <Section title="Hardware & Windows"><SpecGrid values={[["Processor", hw?.processor?.name], ["Cores / logical", hw?.processor ? `${hw.processor.physicalCores ?? '—'} / ${hw.processor.logicalProcessors ?? '—'}` : null], ["Installed RAM", hw?.ram?.totalGB == null ? null : `${hw.ram.totalGB} GB`], ["Windows edition", hw?.windows?.edition], ["Version / build", [hw?.windows?.version, hw?.windows?.buildNumber].filter(Boolean).join(' / ')], ["Architecture", hw?.windows?.architecture]]} /></Section>
       {!!hw?.disks?.length && <Section title="Physical storage"><DataTable headers={["Model", "Serial", "Capacity", "Type / bus"]} rows={hw.disks.map((disk: Json) => [disk.model, disk.serialNumber, disk.capacityGB ? `${disk.capacityGB} GB` : null, [disk.mediaType, disk.busType].filter(Boolean).join(' / ')])} /></Section>}
       {!!hw?.networkAdapters?.length && <Section title="Active network adapters"><DataTable headers={["Adapter", "MAC address"]} rows={hw.networkAdapters.map((adapter: Json) => [adapter.name, adapter.macAddress])} /></Section>}

@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType><TargetFramework>net8.0-windows</TargetFramework><UseWindowsForms>true</UseWindowsForms>
-    <AssemblyName>MiLifeDeviceAgent</AssemblyName><Version>1.4.0</Version>
+    <AssemblyName>MiLifeDeviceAgent</AssemblyName><Version>1.5.0</Version>
     <ApplicationManifest>../MiLife.DeviceCollector/app.manifest</ApplicationManifest><PublishTrimmed>false</PublishTrimmed>
   </PropertyGroup>
   <ItemGroup>

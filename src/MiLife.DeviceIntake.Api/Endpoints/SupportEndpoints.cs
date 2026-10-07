@@ -11,6 +11,13 @@ public static class SupportEndpoints
     public static void MapSupport(this WebApplication app)
     {
         app.MapGet("/device-admin/api/commands/catalog", Catalog);
+        app.MapGet("/device-admin/api/commands", async (IntakeDbContext db, TimeProvider clock, CancellationToken ct) =>
+        {
+            await ExpireAsync(db, clock, ct);
+            return Results.Ok(new { items = await db.SupportJobs.AsNoTracking().OrderByDescending(j => j.RequestedAtUtc)
+                .Take(100).Select(j => new { j.Id, j.AgentId, j.Agent.SerialNumber, j.Agent.EmployeeName, j.DisplayName,
+                    j.Script, j.RunSilently, j.RequestedBy, j.Status, j.RequestedAtUtc, j.Output, j.ExitCode }).ToListAsync(ct) });
+        });
 
         app.MapGet("/device-admin/api/agents/{id:guid}/commands", History);
         app.MapPost("/device-admin/api/agents/{id:guid}/commands", Queue);

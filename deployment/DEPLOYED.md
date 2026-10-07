@@ -1,4 +1,40 @@
-> Dedicated production server: `172.26.50.221`. Release 1.4 and the existing public hostname were activated on 2026-09-24.
+> Dedicated production server: `172.26.50.221`. Release 1.5 was activated on 2026-10-07.
+
+## Release 1.5 admin portal — 2026-10-07
+
+The interactive React dashboard is now the production `/device-admin` portal. It includes
+the MiLife logo, desktop/laptop/unknown classification, review and availability filters,
+responsive inventory details, device selection, single- and multi-device script review,
+global command activity and result history, and an authenticated server-health view.
+
+Device type comes from Windows `Win32_SystemEnclosure.ChassisTypes`, with
+`Win32_ComputerSystem.PCSystemType` used only when no explicit chassis is reported. Existing
+records remain `Unknown` until the 1.5 agent sends one inventory refresh. The agent continues
+to require current consent for silent commands and runs scripts as the signed-in employee
+with the existing time and output limits.
+
+The health view reports database responsiveness, API uptime and memory, root-volume free
+space, system memory, one-minute load and the last successful database backup. The backup
+job now writes a root-owned marker readable by the API after a successful dump.
+
+Deployment applied MySQL migration `20261007141035_DeviceType`, then returned the runtime
+account to SELECT, INSERT, UPDATE and DELETE. The API, MySQL, Nginx, ngrok and backup timer
+were active with no failed units. The deployment created rollback backup
+`/var/backups/milife-promotion/20261007T143107Z` and immediately completed a fresh database
+backup at `2026-10-07T14:31:26Z`.
+
+The deployed 1.5 agent SHA-256 is:
+
+```text
+a90bf0ba804a123ef6de5064576de526d434b03292225984063445f1c8c4696f
+```
+
+All 85 automated tests passed. Local Edge acceptance covered production-route React login,
+logo loading, filters, device details, target selection, script activity, server health and
+mobile layout. Public validation confirmed the React shell/assets, registration page,
+database-backed health, authentication boundaries and ranged agent download. Authenticated
+production browser validation still requires the separate dashboard password; the SSH
+credential does not authenticate the portal.
 
 ## Release 1.4 production and React preview — 2026-09-24
 

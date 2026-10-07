@@ -1,4 +1,4 @@
-> Production runs release 1.4. The accepted operations dashboard is live at [device admin](https://uphill-cofounder-trident.ngrok-free.dev/device-admin), and the React rebuild is isolated at [React preview](https://uphill-cofounder-trident.ngrok-free.dev/device-admin/react-preview). See [the deployment record](deployment/DEPLOYED.md).
+> Production runs release 1.5. The interactive React administration portal is live at [device admin](https://uphill-cofounder-trident.ngrok-free.dev/device-admin), with device-type and availability filters, multi-device script execution, command activity and server health. See [the deployment record](deployment/DEPLOYED.md).
 
 # MiLife Device Inventory Collector
 

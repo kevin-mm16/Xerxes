@@ -18,7 +18,7 @@ public static class DashboardEndpoints
     public static void MapDashboard(this WebApplication app)
     {
         app.MapGet("/device-admin", (IWebHostEnvironment environment) => Results.File(
-            Path.Combine(environment.ContentRootPath, "wwwroot", "device-admin", "index.html"), "text/html; charset=utf-8"));
+            Path.Combine(environment.ContentRootPath, "wwwroot", "device-admin-react-preview", "index.html"), "text/html; charset=utf-8"));
         app.MapGet("/device-admin/preview", (IWebHostEnvironment environment) => Results.File(
             Path.Combine(environment.ContentRootPath, "wwwroot", "device-admin-preview", "index.html"), "text/html; charset=utf-8"));
         app.MapGet("/device-admin/react-preview", (IWebHostEnvironment environment) => Results.File(
@@ -42,8 +42,9 @@ public static class DashboardEndpoints
             await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             return Results.Ok(new { authenticated = false });
         });
-        app.MapGet("/device-admin/api/devices", (IntakeDbContext db, string? search, string? status, int? page, CancellationToken ct) => ListDevicesAsync(db, search, status, page, ct));
-        app.MapGet("/device-admin/api/devices/export", (IntakeDbContext db, string? search, string? status, CancellationToken ct) => ListDevicesAsync(db, search, status, null, ct, true));
+        app.MapGet("/device-admin/api/devices", (IntakeDbContext db, string? search, string? status, string? deviceType, string? availability, int? page, CancellationToken ct) => ListDevicesAsync(db, search, status, deviceType, availability, page, ct));
+        app.MapGet("/device-admin/api/devices/export", (IntakeDbContext db, string? search, string? status, string? deviceType, string? availability, CancellationToken ct) => ListDevicesAsync(db, search, status, deviceType, availability, null, ct, true));
+        app.MapGet("/device-admin/api/server-health", ServerHealth.ReadAsync);
     }
 
     private static async Task StreamEventsAsync(HttpContext context, CancellationToken ct)
@@ -61,7 +62,7 @@ public static class DashboardEndpoints
         }
     }
 
-    private static async Task<IResult> ListDevicesAsync(IntakeDbContext db, string? search, string? status, int? page, CancellationToken ct, bool export = false)
+    private static async Task<IResult> ListDevicesAsync(IntakeDbContext db, string? search, string? status, string? deviceType, string? availability, int? page, CancellationToken ct, bool export = false)
     {
         var currentPage = page ?? 1;
         if (currentPage is < 1 or > 100000 || search?.Length > 256) return Results.BadRequest(new { error = "Invalid search or page." });
@@ -82,10 +83,29 @@ public static class DashboardEndpoints
                 return Results.BadRequest(new { error = "Invalid status." });
             query = query.Where(s => s.Status == state);
         }
-        var total = await query.CountAsync(ct);
+        if (!string.IsNullOrEmpty(deviceType))
+        {
+            if (deviceType is not ("Desktop" or "Laptop" or "Unknown")) return Results.BadRequest(new { error = "Invalid device type." });
+            query = query.Where(s => s.DeviceType == deviceType);
+        }
         var cutoff = DateTime.UtcNow.AddMinutes(-15);
+        if (!string.IsNullOrEmpty(availability))
+        {
+            query = availability switch
+            {
+                "Online" => query.Where(s => db.Agents.Any(a => a.SerialNumber == s.SerialNumber && !a.IsRevoked && a.IsEnabled && a.LastSeenAtUtc >= cutoff)),
+                "Offline" => query.Where(s => db.Agents.Any(a => a.SerialNumber == s.SerialNumber && !a.IsRevoked && a.IsEnabled)
+                    && !db.Agents.Any(a => a.SerialNumber == s.SerialNumber && !a.IsRevoked && a.IsEnabled && a.LastSeenAtUtc >= cutoff)),
+                "Disabled" => query.Where(s => db.Agents.Any(a => a.SerialNumber == s.SerialNumber)
+                    && !db.Agents.Any(a => a.SerialNumber == s.SerialNumber && !a.IsRevoked && a.IsEnabled)),
+                "NotEnrolled" => query.Where(s => !db.Agents.Any(a => a.SerialNumber == s.SerialNumber)),
+                _ => null!
+            };
+            if (query is null) return Results.BadRequest(new { error = "Invalid availability." });
+        }
+        var total = await query.CountAsync(ct);
         var projected = query.OrderByDescending(s => s.ReceivedAtUtc).ThenBy(s => s.Id)
-            .Select(s => new { s.Id, s.SerialNumber, s.ComputerName, s.LoggedInUser, s.Manufacturer, s.Model, s.RamGB, s.Status,
+            .Select(s => new { s.Id, s.SerialNumber, s.ComputerName, s.LoggedInUser, s.Manufacturer, s.Model, s.DeviceType, s.RamGB, s.Status,
                 employeeName = db.Agents.Where(a => a.SerialNumber == s.SerialNumber && a.EmployeeName != null && !a.IsRevoked)
                     .OrderByDescending(a => a.EnrolledAtUtc).Select(a => a.EmployeeName).FirstOrDefault(),
                 s.ReceivedAtUtc, s.BranchCode, submissionCount = db.DeviceSubmissions.Count(other => other.SerialNumber == s.SerialNumber),
@@ -98,12 +118,12 @@ public static class DashboardEndpoints
             return Results.Stream(async stream =>
             {
                 await using var writer = new StreamWriter(stream, new UTF8Encoding(true), 4096, leaveOpen: true);
-                await writer.WriteLineAsync("Computer name,Serial number,Employee name,Windows user,Manufacturer,Model,RAM (GB),Review status,Availability,Last heartbeat (UTC),Last inventory (UTC),Branch,Submission count");
+                await writer.WriteLineAsync("Computer name,Serial number,Employee name,Windows user,Manufacturer,Model,RAM (GB),Review status,Availability,Last heartbeat (UTC),Last inventory (UTC),Branch,Submission count,Device type");
                 await foreach (var item in projected.AsAsyncEnumerable().WithCancellation(ct))
                 {
                     var cells = new object?[] { item.ComputerName, item.SerialNumber, item.employeeName, item.LoggedInUser,
                         item.Manufacturer, item.Model, item.RamGB, item.Status, item.availability, item.lastHeartbeatUtc?.ToString("O", CultureInfo.InvariantCulture),
-                        item.ReceivedAtUtc.ToString("O", CultureInfo.InvariantCulture), item.BranchCode, item.submissionCount };
+                        item.ReceivedAtUtc.ToString("O", CultureInfo.InvariantCulture), item.BranchCode, item.submissionCount, item.DeviceType };
                     await writer.WriteLineAsync(string.Join(',', cells.Select(CsvCell)).AsMemory(), ct);
                 }
             }, "text/csv; charset=utf-8", $"milife-devices-{DateTime.UtcNow:yyyyMMdd-HHmmss}.csv");

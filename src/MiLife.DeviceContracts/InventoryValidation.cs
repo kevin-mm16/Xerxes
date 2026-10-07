@@ -36,6 +36,7 @@ public static partial class InventoryValidation
         Text(data.CollectorVersion, "collectorVersion", 32);
         Text(data.ComputerName, "computerName"); Text(data.LoggedInUser, "loggedInUser");
         Text(data.Manufacturer, "manufacturer"); Text(data.Model, "model");
+        if (data.DeviceType is not (null or "Desktop" or "Laptop" or "Unknown")) errors.Add("Invalid deviceType.");
         if (data.Processor is { } cpu)
         {
             Text(cpu.Manufacturer, "processor.manufacturer"); Text(cpu.Name, "processor.name");

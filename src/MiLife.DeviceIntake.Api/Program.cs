@@ -180,7 +180,7 @@ app.MapGet("/health", async (IntakeDbContext db, CancellationToken ct) =>
 {
     try
     {
-        await db.DeviceSubmissions.AsNoTracking().Select(s => s.Id).Take(1).ToListAsync(ct);
+        _ = await db.DeviceSubmissions.AsNoTracking().AnyAsync(ct);
         return Results.Ok(new { status = "healthy" });
     }
     catch (Exception) { return Results.Json(new { status = "unhealthy" }, statusCode: 503); }

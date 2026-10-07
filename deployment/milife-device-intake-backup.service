@@ -13,5 +13,5 @@ IOSchedulingPriority=7
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/var/backups/milife-device-intake
+ReadWritePaths=/var/backups/milife-device-intake /var/lib/milife-device-intake
 NoNewPrivileges=true
