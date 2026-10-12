@@ -16,7 +16,7 @@ internal static class Program
         bool acquired;
         try { acquired = mutex.WaitOne(cleanupIndex >= 0 ? 15000 : 0); }
         catch (AbandonedMutexException) { acquired = true; }
-        if (!acquired) { MessageBox.Show("MiLife is already running. Open it from the notification area.", "MiLife device agent"); return; }
+        if (!acquired) return;
         try
         {
             using var resource = Assembly.GetExecutingAssembly().GetManifestResourceStream("AgentSettings");
@@ -24,8 +24,7 @@ internal static class Program
             if (cleanupIndex >= 0 && cleanupIndex + 1 < args.Length) _ = CleanupInstallerAsync(args[cleanupIndex + 1]);
             Application.Run(new AgentForm(settings, args.Contains("--background")));
         }
-        catch (Exception)
-        { MessageBox.Show("The heartbeat agent could not start. Please contact IT. No administrator access is required.", "MiLife Device Heartbeat", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+        catch (Exception) { /* Background startup retries through the scheduled task and local logs. */ }
         finally { mutex.ReleaseMutex(); }
     }
 

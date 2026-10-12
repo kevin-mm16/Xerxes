@@ -118,6 +118,10 @@ namespace MiLife.DeviceIntake.Api.Data.MySqlMigrations
                     b.Property<double?>("Longitude")
                         .HasColumnType("double");
 
+                    b.Property<string>("PhoneNumber")
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)");
+
                     b.Property<string>("SerialNumber")
                         .IsRequired()
                         .HasMaxLength(128)

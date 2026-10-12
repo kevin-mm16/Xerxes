@@ -13,18 +13,18 @@ export function CommandActivity({ api, liveTick }: { api: Api; liveTick: number 
   const [loading, setLoading] = useState(true); const [filter, setFilter] = useState('');
   const [busy, setBusy] = useState('');
   const load = useCallback(async () => {
-    try { setJobs((await api('commands')).items); setError(''); }
+    try { setJobs((await api('commands' + (filter === 'expired' ? '?includeExpired=true' : ''))).items); setError(''); }
     catch (e) { setError((e as Error).message); } finally { setLoading(false); }
-  }, [api]);
+  }, [api, filter]);
   useEffect(() => { load(); }, [load, liveTick]);
   async function cancel(job: Job) {
     setBusy(job.id);
     try { await api(`agents/${job.agentId}/commands/${job.id}/cancel`, { method: 'POST', body: '{}' }); await load(); }
     catch (e) { setError((e as Error).message); } finally { setBusy(''); }
   }
-  const visible = jobs.filter(job => filter === 'active' ? active.includes(job.status) : filter === 'attention' ? ['Expired', 'TimedOut', 'ResultUnavailable', 'Declined'].includes(job.status) || (job.exitCode != null && job.exitCode !== 0) : true);
+  const visible = jobs.filter(job => filter === 'active' ? active.includes(job.status) : filter === 'attention' ? ['TimedOut', 'ResultUnavailable', 'Declined'].includes(job.status) || (job.exitCode != null && job.exitCode !== 0) : filter === 'expired' ? job.status === 'Expired' : true);
   return <section className="panel operations-panel"><div className="panel-heading"><div><h2>Script activity</h2><p className="muted small">Latest 100 commands across all devices. Results update automatically.</p></div><button className="button secondary" onClick={load}>Refresh</button></div>
-    <div className="activity-filters"><label>Show <select value={filter} onChange={e => setFilter(e.target.value)}><option value="">All commands</option><option value="active">In progress</option><option value="attention">Needs attention</option></select></label></div>
+    <div className="activity-filters"><label>Show <select value={filter} onChange={e => setFilter(e.target.value)}><option value="">Current history</option><option value="active">In progress</option><option value="attention">Needs attention</option><option value="expired">Expired audit</option></select></label></div>
     {error && <p className="error" role="alert">{error}</p>}
     {loading ? <p className="muted">Loading command history…</p> : !visible.length ? <div className="empty"><h3>No commands to show</h3><p>Select devices in the inventory to run a script.</p></div> : <div className="command-history global-history">{visible.map(job => <article key={job.id}>
       <div><strong>{job.displayName} <span className="muted">· {job.serialNumber}</span></strong><span className={`command-status ${job.status.toLowerCase()}`}>{job.status === 'Completed' && job.exitCode != null && job.exitCode !== 0 ? `Failed (exit ${job.exitCode})` : job.status}</span></div>
@@ -65,6 +65,7 @@ export function ScriptRunner({ devices, api, close, showActivity }: { devices: T
   const [loading, setLoading] = useState(true); const [error, setError] = useState('');
   const [template, setTemplate] = useState(''); const [script, setScript] = useState(''); const [custom, setCustom] = useState(false);
   const [silent, setSilent] = useState(false); const [review, setReview] = useState(false); const [busy, setBusy] = useState(false);
+  const [deliveryWindowMinutes, setDeliveryWindowMinutes] = useState(1440);
   const [results, setResults] = useState<Record<string, string>>({}); const [submitted, setSubmitted] = useState(false);
   const submitting = useRef(false); const dialog = useRef<HTMLElement>(null);
   useEffect(() => {
@@ -113,7 +114,7 @@ export function ScriptRunner({ devices, api, close, showActivity }: { devices: T
     for (const target of eligible) {
       setResults(previous => ({ ...previous, [target.id]: 'Queuing…' }));
       try {
-        const job = await api(`agents/${target.agentId}/commands`, { method: 'POST', body: JSON.stringify(custom ? { script, runSilently: silent } : { templateId: template, runSilently: silent }) });
+        const job = await api(`agents/${target.agentId}/commands`, { method: 'POST', body: JSON.stringify(custom ? { script, runSilently: silent, deliveryWindowMinutes } : { templateId: template, runSilently: silent, deliveryWindowMinutes }) });
         setResults(previous => ({ ...previous, [target.id]: `${job.status} · ${job.id.slice(0, 8)}` }));
       } catch (e) {
         setResults(previous => ({ ...previous, [target.id]: `Could not confirm queueing: ${(e as Error).message}. Check Script activity before trying again.` }));
@@ -131,7 +132,8 @@ export function ScriptRunner({ devices, api, close, showActivity }: { devices: T
         {!review ? <><div className="tabs"><button className={!custom ? 'active' : ''} onClick={() => setCustom(false)}>Diagnostic template</button><button className={custom ? 'active' : ''} onClick={() => setCustom(true)}>Custom PowerShell</button></div>
           {custom ? <label className="field-label">PowerShell script<textarea aria-label="PowerShell script" className="script-editor" value={script} maxLength={4096} onChange={e => setScript(e.target.value)} placeholder="Get-Date" /><small>{script.length} / 4096 characters</small></label> : <label className="field-label">Diagnostic action<select value={template} onChange={e => setTemplate(e.target.value)}><option value="">Choose an action</option>{catalog.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select><p className="fine muted">{catalog.find(item => item.id === template)?.description}</p></label>}
           <label className="field-label">Execution mode<select value={silent ? 'silent' : 'prompt'} onChange={e => setSilent(e.target.value === 'silent')}><option value="prompt">Ask employee first</option><option value="silent" disabled={!canRunSilent}>Run silently with recorded consent</option></select></label>
-          <p className="fine muted">Scripts run as the signed-in employee, with a 60-second limit. Offline agents must reconnect within five minutes. Devices without an eligible agent are skipped.</p>
+          <label className="field-label">Delivery window<select value={deliveryWindowMinutes} onChange={e => setDeliveryWindowMinutes(Number(e.target.value))}><option value={60}>1 hour</option><option value={240}>4 hours</option><option value={720}>12 hours</option><option value={1440}>24 hours</option></select></label>
+          <p className="fine muted">Scripts run as the signed-in employee, with a 60-second execution limit. Offline agents can reconnect during the selected delivery window. Devices without an eligible agent are skipped.</p>
           <button className="button primary" disabled={!valid} onClick={() => setReview(true)}>Review {eligible.length} target{eligible.length === 1 ? '' : 's'}</button>
         </> : <><h3>Review and run</h3><p>{custom ? 'Custom PowerShell' : catalog.find(item => item.id === template)?.name} on <strong>{eligible.length} device{eligible.length === 1 ? '' : 's'}</strong>.</p><p>Mode: <strong>{silent ? 'Silent execution' : 'Ask employee first'}</strong></p>{custom && <pre>{script}</pre>}
           <div className="actions"><button className="button secondary" onClick={() => setReview(false)}>Back</button><button className="button primary" disabled={!valid} onClick={run}>Queue script on {eligible.length} device{eligible.length === 1 ? '' : 's'}</button></div>

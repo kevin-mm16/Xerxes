@@ -13,6 +13,7 @@ if ($endpoint.Scheme -ne 'https' -or $endpoint.UserInfo -or $endpoint.AbsolutePa
 $headers = @{'X-Device-Token'=$profile.DeviceToken; 'ngrok-skip-browser-warning'='true'}
 $shortcutName = if ($acceptanceTest) { 'MiLife Device Heartbeat Acceptance Test.lnk' } else { 'MiLife Device Heartbeat.lnk' }
 $shortcut = Join-Path ([Environment]::GetFolderPath('Startup')) $shortcutName
+$taskName = if ($acceptanceTest) { 'MiLife Device Heartbeat Acceptance Test' } else { 'MiLife Device Heartbeat' }
 function Report([string]$status, [string]$errorText) {
     $body = @{agentId=$profile.AgentId;status=$status;error=$errorText} | ConvertTo-Json -Compress
     for ($attempt=0; $attempt -lt 3; $attempt++) {
@@ -25,6 +26,7 @@ try {
     $parent = Get-Process -Id $agentParentPid -ErrorAction SilentlyContinue
     [IO.File]::WriteAllText((Join-Path $root 'uninstall-ready'), 'ready')
     if ($parent -and !$parent.WaitForExit(60000)) { throw 'Agent did not exit' }
+    try { $scheduler = New-Object -ComObject 'Schedule.Service'; $scheduler.Connect(); $scheduler.GetFolder('\').DeleteTask($taskName, 0) } catch { if ($_.Exception.HResult -ne -2147024894) { throw } }
     if (Test-Path -LiteralPath $shortcut) { Remove-Item -LiteralPath $shortcut -Force }
     for ($attempt=0; $attempt -lt 20; $attempt++) {
         try {

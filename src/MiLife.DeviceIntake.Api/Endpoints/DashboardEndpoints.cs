@@ -75,7 +75,8 @@ public static class DashboardEndpoints
             var term = search.Trim().ToUpperInvariant();
             query = query.Where(s => s.SerialNumber.Contains(term) || (s.ComputerName != null && s.ComputerName.ToUpper().Contains(term))
                 || (s.LoggedInUser != null && s.LoggedInUser.ToUpper().Contains(term))
-                || db.Agents.Any(a => a.SerialNumber == s.SerialNumber && a.EmployeeName != null && a.EmployeeName.ToUpper().Contains(term)));
+                || db.Agents.Any(a => a.SerialNumber == s.SerialNumber && ((a.EmployeeName != null && a.EmployeeName.ToUpper().Contains(term))
+                    || (a.PhoneNumber != null && a.PhoneNumber.ToUpper().Contains(term)))));
         }
         if (!string.IsNullOrWhiteSpace(status))
         {
@@ -108,6 +109,8 @@ public static class DashboardEndpoints
             .Select(s => new { s.Id, s.SerialNumber, s.ComputerName, s.LoggedInUser, s.Manufacturer, s.Model, s.DeviceType, s.RamGB, s.Status,
                 employeeName = db.Agents.Where(a => a.SerialNumber == s.SerialNumber && a.EmployeeName != null && !a.IsRevoked)
                     .OrderByDescending(a => a.EnrolledAtUtc).Select(a => a.EmployeeName).FirstOrDefault(),
+                phoneNumber = db.Agents.Where(a => a.SerialNumber == s.SerialNumber && a.PhoneNumber != null && !a.IsRevoked)
+                    .OrderByDescending(a => a.EnrolledAtUtc).Select(a => a.PhoneNumber).FirstOrDefault(),
                 s.ReceivedAtUtc, s.BranchCode, submissionCount = db.DeviceSubmissions.Count(other => other.SerialNumber == s.SerialNumber),
                 availability = db.Agents.Any(a => a.SerialNumber == s.SerialNumber && !a.IsRevoked && a.IsEnabled && a.LastSeenAtUtc >= cutoff) ? "Online"
                     : db.Agents.Any(a => a.SerialNumber == s.SerialNumber && !a.IsRevoked && a.IsEnabled) ? "Offline"
@@ -118,10 +121,10 @@ public static class DashboardEndpoints
             return Results.Stream(async stream =>
             {
                 await using var writer = new StreamWriter(stream, new UTF8Encoding(true), 4096, leaveOpen: true);
-                await writer.WriteLineAsync("Computer name,Serial number,Employee name,Windows user,Manufacturer,Model,RAM (GB),Review status,Availability,Last heartbeat (UTC),Last inventory (UTC),Branch,Submission count,Device type");
+                await writer.WriteLineAsync("Computer name,Serial number,Employee name,Phone number,Windows user,Manufacturer,Model,RAM (GB),Review status,Availability,Last heartbeat (UTC),Last inventory (UTC),Branch,Submission count,Device type");
                 await foreach (var item in projected.AsAsyncEnumerable().WithCancellation(ct))
                 {
-                    var cells = new object?[] { item.ComputerName, item.SerialNumber, item.employeeName, item.LoggedInUser,
+                    var cells = new object?[] { item.ComputerName, item.SerialNumber, item.employeeName, item.phoneNumber, item.LoggedInUser,
                         item.Manufacturer, item.Model, item.RamGB, item.Status, item.availability, item.lastHeartbeatUtc?.ToString("O", CultureInfo.InvariantCulture),
                         item.ReceivedAtUtc.ToString("O", CultureInfo.InvariantCulture), item.BranchCode, item.submissionCount, item.DeviceType };
                     await writer.WriteLineAsync(string.Join(',', cells.Select(CsvCell)).AsMemory(), ct);

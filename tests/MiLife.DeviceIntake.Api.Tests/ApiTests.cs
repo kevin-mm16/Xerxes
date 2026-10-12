@@ -366,6 +366,26 @@ public sealed class ApiTests : IDisposable
     }
 
     [Fact]
+    public async Task NewAgentRequiresPhoneAndAdminCanUpdateAndSearchIt()
+    {
+        using var client = Client();
+        using var submitted = await Send(client, Payload("PHONE-1"));
+        var receipt = (await submitted.Content.ReadFromJsonAsync<IntakeReceipt>(InventoryJson.Options))!;
+        var enrollment = new AgentEnrollment(Guid.NewGuid(), receipt.SubmissionId, "PHONE-1", AgentPolicy.AgentVersion,
+            new string('d', 64), "Phone Test Person", AgentPolicy.PrivacyNoticeVersion, DateTime.UtcNow);
+        using var missing = await client.PostAsJsonAsync("/api/device-agent/enroll", enrollment, InventoryJson.Options);
+        Assert.Equal(HttpStatusCode.BadRequest, missing.StatusCode);
+        enrollment = enrollment with { PhoneNumber = "+233 24 123 4567" };
+        using var enrolled = await client.PostAsJsonAsync("/api/device-agent/enroll", enrollment, InventoryJson.Options);
+        Assert.Equal(HttpStatusCode.OK, enrolled.StatusCode);
+        using var admin = await DashboardClient();
+        using var updated = await admin.PostAsJsonAsync($"/device-admin/api/agents/{enrollment.AgentId}/contact", new AgentContactRequest("+233 20 765 4321"));
+        Assert.Equal(HttpStatusCode.OK, updated.StatusCode);
+        var found = await admin.GetFromJsonAsync<JsonElement>("/device-admin/api/devices?search=765%204321");
+        Assert.Equal("+233 20 765 4321", found.GetProperty("items")[0].GetProperty("phoneNumber").GetString());
+    }
+
+    [Fact]
     public async Task RequiredNameAndLocationAreValidatedAndSearchable()
     {
         var (device, enrollment) = await ManagedAgent(); using var owner = device;
@@ -446,9 +466,14 @@ public sealed class ApiTests : IDisposable
 
         using var unknown = await admin.PostAsJsonAsync(route, new SupportRequest(TemplateId: "not-a-command", RunSilently: true));
         Assert.Equal(HttpStatusCode.BadRequest, unknown.StatusCode);
-        using var created = await admin.PostAsJsonAsync(route, new SupportRequest(TemplateId: "system-health", RunSilently: true));
+        var before = DateTime.UtcNow;
+        using var invalidWindow = await admin.PostAsJsonAsync(route, new SupportRequest(TemplateId: "system-health", RunSilently: true, DeliveryWindowMinutes: 1441));
+        Assert.Equal(HttpStatusCode.BadRequest, invalidWindow.StatusCode);
+        using var created = await admin.PostAsJsonAsync(route, new SupportRequest(TemplateId: "system-health", RunSilently: true, DeliveryWindowMinutes: 1440));
         Assert.Equal(HttpStatusCode.OK, created.StatusCode);
-        var id = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+        var createdBody = await created.Content.ReadFromJsonAsync<JsonElement>();
+        var id = createdBody.GetProperty("id").GetGuid();
+        Assert.True(createdBody.GetProperty("expiresAtUtc").GetDateTime() >= before.AddHours(23));
         var command = await device.GetFromJsonAsync<SupportCommand>($"/api/device-agent/{enrollment.AgentId}/commands/next", InventoryJson.Options);
         Assert.NotNull(command); Assert.True(command.RunSilently); Assert.Equal("System health", command.DisplayName); Assert.NotEmpty(command.Script);
 

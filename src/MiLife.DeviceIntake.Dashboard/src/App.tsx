@@ -3,12 +3,12 @@ import { CommandActivity, ScriptRunner, ServerHealth } from './Operations';
 
 type Json = Record<string, any>;
 type Device = {
-  id: string; serialNumber: string; computerName?: string; employeeName?: string; manufacturer?: string;
+  id: string; serialNumber: string; computerName?: string; employeeName?: string; phoneNumber?: string; manufacturer?: string;
   model?: string; deviceType: string; ramGB?: number; status: string; availability: string; receivedAtUtc: string;
   lastHeartbeatUtc?: string; submissionCount: number;
 };
 type Agent = {
-  id: string; agentVersion: string; employeeName?: string; availability: string; lastSeenAtUtc?: string;
+  id: string; agentVersion: string; employeeName?: string; phoneNumber?: string; availability: string; lastSeenAtUtc?: string;
   enrolledAtUtc: string; isEnabled: boolean; isRevoked: boolean; consentVersion?: string;
   consentAcceptedAtUtc?: string; latitude?: number; longitude?: number; accuracyMeters?: number; locationCapturedAtUtc?: string;
 };
@@ -171,7 +171,7 @@ function Dashboard({ api, username, logout, liveTick, connection, notify }: { ap
         <section className="panel">
           <div className="panel-heading"><div><h2>All devices <span className="count">{total}</span></h2><p className="muted small">Open a device to inspect inventory or start support.</p></div><div className="actions"><button className="button secondary" onClick={exportCsv}>Export CSV</button><button className="button secondary" onClick={load} disabled={loading}>{loading ? 'Refreshing…' : 'Refresh'}</button></div></div>
           <form className="filters" onSubmit={event => { event.preventDefault(); setPage(1); setQuery(draft.trim()); }}>
-            <label className="search"><span>⌕</span><input value={draft} onChange={event => setDraft(event.target.value)} placeholder="Search computer, serial number or employee…" maxLength={256} aria-label="Search devices" /></label>
+            <label className="search"><span>⌕</span><input value={draft} onChange={event => setDraft(event.target.value)} placeholder="Search computer, serial, employee or phone…" maxLength={256} aria-label="Search devices" /></label>
             <select value={status} onChange={event => { setPage(1); setStatus(event.target.value); }} aria-label="Review status"><option value="">All review statuses</option><option value="PendingReview">Pending review</option><option value="Approved">Approved</option><option value="Matched">Matched</option><option value="Rejected">Rejected</option></select>
             <select value={deviceType} onChange={event => { setPage(1); setDeviceType(event.target.value); }} aria-label="Device type"><option value="">All device types</option><option>Desktop</option><option>Laptop</option><option>Unknown</option></select>
             <select value={availability} onChange={event => { setPage(1); setAvailability(event.target.value); }} aria-label="Availability"><option value="">All availability</option><option>Online</option><option>Offline</option><option>Disabled</option><option value="NotEnrolled">No heartbeat</option></select>
@@ -185,7 +185,7 @@ function Dashboard({ api, username, logout, liveTick, connection, notify }: { ap
               <td onClick={event => event.stopPropagation()}><input type="checkbox" aria-label={`Select ${device.computerName || device.serialNumber}`} checked={checked.has(device.serialNumber)} onChange={() => toggleDevice(device.serialNumber)} /></td>
               <td><div className="device"><span className="device-icon">▣</span><div><strong>{device.computerName || 'Unnamed PC'}</strong><small>{[device.manufacturer, device.model].filter(Boolean).join(' · ') || 'Model unavailable'}</small></div></div></td>
               <td><Badge tone={device.deviceType}>{device.deviceType}</Badge></td>
-              <td><strong>{device.serialNumber}</strong><small>{device.employeeName || 'Name not recorded'}</small></td><td>{device.ramGB == null ? '—' : `${device.ramGB} GB`}</td>
+              <td><strong>{device.serialNumber}</strong><small>{device.employeeName || 'Name not recorded'}{device.phoneNumber ? ` · ${device.phoneNumber}` : ''}</small></td><td>{device.ramGB == null ? '—' : `${device.ramGB} GB`}</td>
               <td><Badge tone={device.availability}>{statusLabel(device.availability)}</Badge></td><td><Badge tone={device.status}>{statusLabel(device.status)}</Badge></td>
               <td>{date(device.receivedAtUtc)}<small>{device.submissionCount} submission{device.submissionCount === 1 ? '' : 's'}</small></td><td><button className="row-open" aria-label={`Open ${device.computerName || device.serialNumber}`}>→</button></td>
             </tr>)}
@@ -252,6 +252,7 @@ function DataTable({ headers, rows }: { headers: string[]; rows: unknown[][] }) 
 
 function AgentCard({ agent, device, api, reload }: { agent: Agent; device: Device; api: (path: string, options?: RequestInit) => Promise<any>; reload: () => Promise<void> }) {
   const [actions, setActions] = useState<Json[]>([]); const [busy, setBusy] = useState(false); const [error, setError] = useState('');
+  const [phone, setPhone] = useState(agent.phoneNumber || '');
   const loadActions = useCallback(async () => { try { setActions((await api(`agents/${agent.id}/actions`)).items); } catch (exception) { setError((exception as Error).message); } }, [agent.id, api]);
   useEffect(() => { loadActions(); }, [loadActions]);
   const pending = actions.some(action => ['Requested', 'Acknowledged'].includes(action.status));
@@ -267,7 +268,13 @@ function AgentCard({ agent, device, api, reload }: { agent: Agent; device: Devic
     try { await api(`agents/${agent.id}/enable`, { method: 'POST', body: '{}' }); await loadActions(); await reload(); }
     catch (exception) { setError((exception as Error).message); } finally { setBusy(false); }
   }
+  async function savePhone() {
+    setBusy(true); setError('');
+    try { await api(`agents/${agent.id}/contact`, { method: 'POST', body: JSON.stringify({ phoneNumber: phone }) }); await reload(); }
+    catch (exception) { setError((exception as Error).message); } finally { setBusy(false); }
+  }
   return <article className="agent-card"><div className="agent-title"><div><strong>{agent.employeeName || 'Unnamed employee'} · Agent {agent.agentVersion}</strong><small>{agent.availability} · Last heartbeat {date(agent.lastSeenAtUtc)}</small></div><Badge tone={agent.availability}>{agent.availability}</Badge></div>
+    <div className="actions"><input aria-label="Employee phone number" value={phone} maxLength={32} onChange={event => setPhone(event.target.value)} placeholder="Phone number" /><button className="button secondary" disabled={busy || phone === (agent.phoneNumber || '')} onClick={savePhone}>Save phone</button></div>
     <div className="actions"><button className="button secondary" disabled={busy || !agent.isEnabled || pending || removed} onClick={() => lifecycle('Disable')}>Disable</button><button className="button secondary" disabled={busy || (agent.isEnabled && !agent.isRevoked) || removed} onClick={enable}>Allow re-enable</button><button className="button danger" disabled={busy || pending || removed} onClick={() => lifecycle('Remove')}>Completely remove</button></div>
     {error && <p className="error">{error}</p>}{actions.slice(0, 4).map(action => <p className="fine muted" key={action.id}>{action.action} · {action.status} · {date(action.completedAtUtc || action.acknowledgedAtUtc || action.requestedAtUtc)}</p>)}</article>;
 }
@@ -275,6 +282,7 @@ function AgentCard({ agent, device, api, reload }: { agent: Agent; device: Devic
 function Support({ agents, catalog, api }: { agents: Agent[]; catalog: CatalogItem[]; api: (path: string, options?: RequestInit) => Promise<any> }) {
   const eligible = agents.filter(agent => agent.agentVersion !== '1.1.0'); const [agentId, setAgentId] = useState(eligible[0]?.id || '');
   const [tab, setTab] = useState<'quick' | 'advanced'>('quick'); const [selected, setSelected] = useState(''); const [mode, setMode] = useState<'silent' | 'prompt'>('silent');
+  const [deliveryWindowMinutes, setDeliveryWindowMinutes] = useState(1440);
   const [script, setScript] = useState(''); const [jobs, setJobs] = useState<CommandJob[]>([]); const [busy, setBusy] = useState(false); const [error, setError] = useState('');
   const agent = eligible.find(item => item.id === agentId); const ready = !!agent?.isEnabled && !agent?.isRevoked; const silent = ready && supportsSilent(agent);
   const load = useCallback(async () => { if (!agentId) return; try { setJobs((await api(`agents/${agentId}/commands`)).items); } catch (exception) { setError((exception as Error).message); } }, [agentId, api]);
@@ -283,7 +291,7 @@ function Support({ agents, catalog, api }: { agents: Agent[]; catalog: CatalogIt
   async function queue() {
     setBusy(true); setError('');
     try {
-      const payload = tab === 'quick' ? { templateId: selected, runSilently: mode === 'silent' } : { script, runSilently: mode === 'silent' };
+      const payload = tab === 'quick' ? { templateId: selected, runSilently: mode === 'silent', deliveryWindowMinutes } : { script, runSilently: mode === 'silent', deliveryWindowMinutes };
       await api(`agents/${agentId}/commands`, { method: 'POST', body: JSON.stringify(payload) }); setScript(''); await load();
     } catch (exception) { setError((exception as Error).message); } finally { setBusy(false); }
   }
@@ -293,7 +301,7 @@ function Support({ agents, catalog, api }: { agents: Agent[]; catalog: CatalogIt
       <div className="support-bar"><label>Target agent<select value={agentId} onChange={event => { setAgentId(event.target.value); setSelected(''); }} disabled={eligible.length === 1}>{eligible.map(item => <option key={item.id} value={item.id}>{item.employeeName || 'Unnamed user'} · {item.availability} · {item.id.slice(0, 8)}</option>)}</select></label><span className={`readiness ${silent ? 'ready' : ready ? 'limited' : 'offline'}`}>{!ready ? 'Agent unavailable' : silent ? 'Silent support ready' : 'Approval mode only'}</span></div>
       <div className="tabs"><button className={tab === 'quick' ? 'active' : ''} onClick={() => setTab('quick')}>Quick actions</button><button className={tab === 'advanced' ? 'active' : ''} onClick={() => setTab('advanced')}>Advanced PowerShell</button></div>
       {tab === 'quick' ? <div className="command-grid">{catalog.map(item => <button className={selected === item.id ? 'selected' : ''} key={item.id} onClick={() => { setSelected(item.id); setMode(item.defaultRunSilently && silent ? 'silent' : 'prompt'); }}><strong>{item.name}</strong><span>{item.description}</span></button>)}</div> : <div className="advanced"><p className="fine muted">Runs with the signed-in employee's Windows permissions.</p><textarea value={script} onChange={event => setScript(event.target.value)} maxLength={4096} placeholder="Example: Get-Date" /></div>}
-      <div className="command-run"><select value={mode} onChange={event => setMode(event.target.value as 'silent' | 'prompt')}><option value="silent" disabled={!silent}>Run silently</option><option value="prompt">Ask employee first</option></select><button className="button primary" disabled={busy || !ready || (tab === 'quick' ? !selected : !script.trim())} onClick={queue}>{busy ? 'Queuing…' : tab === 'quick' ? 'Run selected action' : 'Queue PowerShell'}</button></div>
+      <div className="command-run"><select value={mode} onChange={event => setMode(event.target.value as 'silent' | 'prompt')}><option value="silent" disabled={!silent}>Run silently</option><option value="prompt">Ask employee first</option></select><select aria-label="Delivery window" value={deliveryWindowMinutes} onChange={event => setDeliveryWindowMinutes(Number(event.target.value))}><option value={60}>Deliver for 1 hour</option><option value={240}>Deliver for 4 hours</option><option value={720}>Deliver for 12 hours</option><option value={1440}>Deliver for 24 hours</option></select><button className="button primary" disabled={busy || !ready || (tab === 'quick' ? !selected : !script.trim())} onClick={queue}>{busy ? 'Queuing…' : tab === 'quick' ? 'Run selected action' : 'Queue PowerShell'}</button></div>
       {error && <p className="error">{error}</p>}
       <div className="activity-title"><h4>Command activity</h4><span className="fine muted">Updates automatically</span></div>
       <div className="command-history">{!jobs.length && <p className="muted small">No commands have been sent to this agent.</p>}{jobs.map(job => <article key={job.id}><div><strong>{job.displayName || 'PowerShell command'}</strong><span className={`command-status ${job.status.toLowerCase()}`}>{job.status}</span></div><small>{job.runSilently ? 'Silent' : 'Approval'} · {date(job.requestedAtUtc)} · {job.requestedBy}</small><details><summary>View command and result</summary><pre>{job.script}</pre>{job.output != null && <><h5>Result</h5><pre>{job.output || '(No output)'}</pre></>}{job.exitCode != null && <p className="fine muted">Exit code: {job.exitCode}</p>}</details>{['Queued', 'AwaitingApproval'].includes(job.status) && <button className="button secondary compact" onClick={() => cancel(job.id)}>Cancel</button>}</article>)}</div>

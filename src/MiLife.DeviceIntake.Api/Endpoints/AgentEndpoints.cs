@@ -23,7 +23,7 @@ public static class AgentEndpoints
             var cutoff = clock.GetUtcNow().UtcDateTime.AddMinutes(-15);
             var items = await db.Agents.AsNoTracking().Where(a => a.SerialNumber == serial).OrderByDescending(a => a.EnrolledAtUtc)
                 .Select(a => new { a.Id, a.AgentVersion, a.EnrolledAtUtc, a.LastSeenAtUtc, a.IsRevoked, a.IsEnabled,
-                    a.EmployeeName, a.ConsentVersion, a.ConsentAcceptedAtUtc, a.Latitude, a.Longitude, a.AccuracyMeters, a.LocationCapturedAtUtc,
+                    a.EmployeeName, a.PhoneNumber, a.ConsentVersion, a.ConsentAcceptedAtUtc, a.Latitude, a.Longitude, a.AccuracyMeters, a.LocationCapturedAtUtc,
                     availability = a.IsRevoked || !a.IsEnabled ? "Disabled" : a.LastSeenAtUtc >= cutoff ? "Online" : "Offline" }).ToListAsync(ct);
             return Results.Ok(new { items });
         });
@@ -34,10 +34,23 @@ public static class AgentEndpoints
             logger.LogInformation("Heartbeat agent {AgentId} revoked by {Reviewer}", id, context.User.Identity?.Name);
             return Results.Ok(new { revoked = true });
         });
+        app.MapPost("/device-admin/api/agents/{id:guid}/contact", async (Guid id, AgentContactRequest request, IntakeDbContext db, CancellationToken ct) =>
+        {
+            var phone = request.PhoneNumber?.Trim();
+            if (!ValidPhone(phone, required: false)) return Results.BadRequest(new { error = "Enter a valid phone number (7 to 20 digits)." });
+            var count = await db.Agents.Where(a => a.Id == id).ExecuteUpdateAsync(u => u.SetProperty(a => a.PhoneNumber, string.IsNullOrEmpty(phone) ? null : phone), ct);
+            return count == 1 ? Results.Ok(new { phoneNumber = phone }) : Results.NotFound();
+        });
     }
 
     private static bool ValidVersion(string? version) => version is { Length: > 0 and <= 32 } && !version.Any(char.IsControl);
     private static bool ValidToken(string? token) => token is { Length: 64 } && token.All(char.IsAsciiHexDigit);
+    private static bool ValidPhone(string? phone, bool required)
+    {
+        if (string.IsNullOrWhiteSpace(phone)) return !required;
+        return phone.Length <= 32 && phone.Count(char.IsDigit) is >= 7 and <= 20
+            && phone.All(c => char.IsDigit(c) || c is '+' or ' ' or '-' or '(' or ')');
+    }
     private static string Hash(string token) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
     private static bool Matches(string token, string hash) => CryptographicOperations.FixedTimeEquals(Encoding.ASCII.GetBytes(Hash(token)), Encoding.ASCII.GetBytes(hash));
 
@@ -46,6 +59,7 @@ public static class AgentEndpoints
         if ((data.AgentVersion != "1.1.0" && string.IsNullOrWhiteSpace(data.EmployeeName))
             || data.EmployeeName is { Length: > 120 } || data.EmployeeName?.Any(char.IsControl) == true)
             return Results.BadRequest(new { error = "Employee name is required (maximum 120 characters)." });
+        if (!ValidPhone(data.PhoneNumber, required: false)) return Results.BadRequest(new { error = "Enter a valid phone number (7 to 20 digits)." });
         if (data.AgentId == Guid.Empty || !InventoryValidation.IsUsableSerial(data.SerialNumber) || !ValidVersion(data.AgentVersion) || !ValidToken(data.DeviceToken))
             return Results.BadRequest(new { error = "Invalid enrollment." });
         var now = clock.GetUtcNow().UtcDateTime;
@@ -57,6 +71,8 @@ public static class AgentEndpoints
         if (!await db.DeviceSubmissions.AnyAsync(s => s.Id == data.SubmissionId && s.SerialNumber == serial, ct))
             return Results.BadRequest(new { error = "Register inventory before enabling heartbeat." });
         var existing = await db.Agents.SingleOrDefaultAsync(a => a.Id == data.AgentId, ct);
+        var needsPhone = existing is null && Version.TryParse(data.AgentVersion, out var submittedVersion) && submittedVersion >= new Version(1, 6, 0);
+        if (needsPhone && string.IsNullOrWhiteSpace(data.PhoneNumber)) return Results.BadRequest(new { error = "A valid phone number is required (7 to 20 digits)." });
         if (existing is not null)
         {
             if (existing.IsRevoked) return Results.StatusCode(403);
@@ -65,12 +81,13 @@ public static class AgentEndpoints
             if (existing.SerialNumber != serial || !Matches(data.DeviceToken, existing.CredentialHash)) return Results.Conflict();
             existing.IsEnabled = true;
             if (!string.IsNullOrWhiteSpace(data.EmployeeName)) existing.EmployeeName = data.EmployeeName.Trim();
+            if (!string.IsNullOrWhiteSpace(data.PhoneNumber)) existing.PhoneNumber = data.PhoneNumber.Trim();
             existing.AgentVersion = data.AgentVersion;
             existing.ConsentVersion = data.ConsentVersion;
             existing.ConsentAcceptedAtUtc = data.ConsentAcceptedAtUtc;
         }
         else db.Agents.Add(new DeviceAgent { Id = data.AgentId, SerialNumber = serial, CredentialHash = Hash(data.DeviceToken),
-            EmployeeName = data.EmployeeName?.Trim(), AgentVersion = data.AgentVersion, ConsentVersion = data.ConsentVersion,
+            EmployeeName = data.EmployeeName?.Trim(), PhoneNumber = data.PhoneNumber?.Trim(), AgentVersion = data.AgentVersion, ConsentVersion = data.ConsentVersion,
             ConsentAcceptedAtUtc = data.ConsentAcceptedAtUtc, EnrolledAtUtc = now });
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateException) { return Results.StatusCode(503); }

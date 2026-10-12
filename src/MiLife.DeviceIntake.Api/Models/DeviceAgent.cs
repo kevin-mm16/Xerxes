@@ -12,6 +12,7 @@ public sealed class DeviceAgent
     public bool IsEnabled { get; set; } = true;
     public bool IsRevoked { get; set; }
     public string? EmployeeName { get; set; }
+    public string? PhoneNumber { get; set; }
     public string? ConsentVersion { get; set; }
     public DateTime? ConsentAcceptedAtUtc { get; set; }
     public double? Latitude { get; set; }

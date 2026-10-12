@@ -112,6 +112,10 @@ namespace MiLife.DeviceIntake.Api.Data.Migrations
                     b.Property<double?>("Longitude")
                         .HasColumnType("REAL");
 
+                    b.Property<string>("PhoneNumber")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("SerialNumber")
                         .IsRequired()
                         .HasMaxLength(128)

@@ -45,6 +45,7 @@ public class IntakeDbContext : DbContext
             entity.Property(a => a.CredentialHash).HasMaxLength(64);
             entity.Property(a => a.AgentVersion).HasMaxLength(32);
             entity.Property(a => a.EmployeeName).HasMaxLength(120);
+            entity.Property(a => a.PhoneNumber).HasMaxLength(32);
             entity.Property(a => a.ConsentVersion).HasMaxLength(32);
             entity.HasIndex(a => new { a.SerialNumber, a.LastSeenAtUtc });
             entity.HasOne(a => a.Device).WithMany().HasForeignKey(a => a.SerialNumber).OnDelete(DeleteBehavior.Restrict);

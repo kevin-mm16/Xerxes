@@ -12,11 +12,11 @@ public sealed class AgentForm : Form
     private readonly AgentProfile profile;
     private readonly AgentApi api;
     private readonly LocalFiles logs;
-    private readonly NotifyIcon tray;
     private readonly System.Windows.Forms.Timer timer = new() { Interval = 300_000 };
     private readonly System.Windows.Forms.Timer supportTimer = new() { Interval = 30_000 };
     private readonly Label status = new();
     private readonly TextBox employeeName = new() { MaxLength = 120, AccessibleName = "Your full name" };
+    private readonly TextBox phoneNumber = new() { MaxLength = 32, AccessibleName = "Your phone number" };
     private readonly Button register = new();
     private readonly PictureBox logo = new();
     private readonly Label heading = new();
@@ -35,7 +35,7 @@ public sealed class AgentForm : Form
         StartPosition = FormStartPosition.CenterScreen; AutoScaleMode = AutoScaleMode.Font;
         Font = new Font("Segoe UI", 10); BackColor = Color.White; ForeColor = Color.FromArgb(16, 30, 64);
         logs = new LocalFiles(AgentPolicy.AgentVersion, store.DirectoryPath);
-        profile = store.Load() ?? new AgentProfile(); api = new AgentApi(settings, logs); employeeName.Text = profile.EmployeeName;
+        profile = store.Load() ?? new AgentProfile(); api = new AgentApi(settings, logs); employeeName.Text = profile.EmployeeName; phoneNumber.Text = profile.PhoneNumber;
 
         using (var logoStream = System.Reflection.Assembly.GetExecutingAssembly().GetManifestResourceStream("MiLifeLogo")!)
         using (var image = Image.FromStream(logoStream)) logo.Image = new Bitmap(image);
@@ -47,13 +47,15 @@ public sealed class AgentForm : Form
         privacyPanel.SetBounds(40, 192, 420, 354); privacyPanel.Accepted += (_, _) => AcceptPrivacyNotice();
         Controls.Add(privacyPanel);
 
-        formPanel.SetBounds(40, 205, 420, 124);
+        formPanel.SetBounds(40, 205, 420, 190);
         formPanel.Controls.Add(new Label { Text = "Your full name", Bounds = new Rectangle(0, 0, 420, 22), Font = new Font("Segoe UI", 10, FontStyle.Bold) });
         employeeName.SetBounds(0, 26, 420, 32); employeeName.Font = new Font("Segoe UI", 12); employeeName.BorderStyle = BorderStyle.FixedSingle;
-        register.Text = "Check in"; register.SetBounds(0, 76, 420, 44); register.BackColor = Color.FromArgb(0, 183, 179);
+        formPanel.Controls.Add(new Label { Text = "Phone number", Bounds = new Rectangle(0, 66, 420, 22), Font = new Font("Segoe UI", 10, FontStyle.Bold) });
+        phoneNumber.SetBounds(0, 92, 420, 32); phoneNumber.Font = new Font("Segoe UI", 12); phoneNumber.BorderStyle = BorderStyle.FixedSingle;
+        register.Text = "Check in"; register.SetBounds(0, 142, 420, 44); register.BackColor = Color.FromArgb(0, 183, 179);
         register.ForeColor = Color.FromArgb(16, 30, 64); register.FlatStyle = FlatStyle.Flat; register.FlatAppearance.BorderSize = 0;
         register.Font = new Font("Segoe UI", 11, FontStyle.Bold);
-        formPanel.Controls.Add(employeeName); formPanel.Controls.Add(register); Controls.Add(formPanel); AcceptButton = register;
+        formPanel.Controls.Add(employeeName); formPanel.Controls.Add(phoneNumber); formPanel.Controls.Add(register); Controls.Add(formPanel); AcceptButton = register;
 
         status.SetBounds(40, 342, 420, 48); status.TextAlign = ContentAlignment.MiddleCenter;
         status.ForeColor = Color.FromArgb(83, 99, 123); Controls.Add(status);
@@ -61,13 +63,7 @@ public sealed class AgentForm : Form
         notice.SetBounds(40, 397, 420, 42); notice.Font = new Font("Segoe UI", 9);
         notice.ForeColor = Color.FromArgb(105, 117, 135); notice.TextAlign = ContentAlignment.MiddleCenter; Controls.Add(notice);
 
-        var menu = new ContextMenuStrip();
-        menu.Items.Add("Show status", null, (_, _) => ShowStatus());
-        menu.Items.Add("Send heartbeat now", null, async (_, _) => await HeartbeatAsync());
-        menu.Items.Add("Disable agent", null, async (_, _) => await DisableAsync());
-        menu.Items.Add("Exit until next sign-in", null, (_, _) => ExitAgent());
-        tray = new NotifyIcon { Icon = SystemIcons.Information, Text = "MiLife company device agent", ContextMenuStrip = menu, Visible = Registered };
-        tray.DoubleClick += (_, _) => ShowStatus(); register.Click += async (_, _) => await RegisterAsync();
+        register.Click += async (_, _) => await RegisterAsync();
         timer.Tick += async (_, _) => await HeartbeatAsync(); supportTimer.Tick += async (_, _) => await SupportAsync();
 
         Shown += async (_, _) =>
@@ -76,8 +72,7 @@ public sealed class AgentForm : Form
             if (Registered)
             {
                 if (!InstallCurrentVersion()) return;
-                ShowRegistered(); tray.Visible = true;
-                if (background) Hide(); timer.Start(); supportTimer.Start(); await HeartbeatAsync();
+                Hide(); timer.Start(); supportTimer.Start(); await HeartbeatAsync();
                 return;
             }
 
@@ -109,7 +104,7 @@ public sealed class AgentForm : Form
     {
         ClientSize = new Size(500, 470); heading.Text = "Check in your PC with us";
         privacyPanel.Visible = false; formPanel.Visible = true; status.Visible = true; notice.Visible = true;
-        status.SetBounds(40, 342, 420, 48); status.Text = ""; employeeName.Enabled = true;
+        status.SetBounds(40, 402, 420, 48); status.Text = ""; employeeName.Enabled = true; phoneNumber.Enabled = true;
         register.Visible = true; register.Enabled = true; AcceptButton = register; employeeName.Focus();
         collection ??= CollectAsync();
     }
@@ -153,15 +148,17 @@ public sealed class AgentForm : Form
     {
         if (!HasCurrentConsent) { ShowPrivacyNotice(); return; }
         var name = employeeName.Text.Trim();
+        var phone = phoneNumber.Text.Trim();
         if (name.Length == 0 || name.Any(char.IsControl)) { status.Text = "Please enter your full name."; employeeName.Focus(); return; }
-        registering = true; register.Enabled = false; employeeName.Enabled = false; status.Text = "Registering...";
+        if (phone.Count(char.IsDigit) is < 7 or > 20 || phone.Any(c => !char.IsDigit(c) && c is not ('+' or ' ' or '-' or '(' or ')'))) { status.Text = "Please enter a valid phone number."; phoneNumber.Focus(); return; }
+        registering = true; register.Enabled = false; employeeName.Enabled = false; phoneNumber.Enabled = false; status.Text = "Registering...";
         try
         {
             collection ??= CollectAsync(); await collection;
-            profile.EmployeeName = name; profile.ManagementNoticeVersion = "1.2"; store.Save(profile);
+            profile.EmployeeName = name; profile.PhoneNumber = phone; profile.ManagementNoticeVersion = "1.2"; store.Save(profile);
             await api.EnableAsync(profile, store);
             store.EnableStartup(); profile.Enabled = true; store.Save(profile);
-            tray.Visible = true; heading.Text = "Check-in successful"; formPanel.Visible = false; notice.Visible = false;
+            heading.Text = "Check-in successful"; formPanel.Visible = false; notice.Visible = false;
             status.SetBounds(40, 215, 420, 50); status.Text = "You're all set.";
             await Task.Delay(1800);
             if (InstallCurrentVersion()) { Hide(); timer.Start(); supportTimer.Start(); await HeartbeatAsync(); }
@@ -171,7 +168,7 @@ public sealed class AgentForm : Form
             logs.Log("RegistrationFailed", ex.GetType().Name);
             status.Text = ex is InvalidOperationException ? ex.Message : "Registration could not finish. Please try again.";
             formPanel.Visible = true; notice.Visible = true; heading.Text = "Check in your PC with us";
-            status.SetBounds(40, 342, 420, 48); register.Visible = true; register.Enabled = true; employeeName.Enabled = true;
+            status.SetBounds(40, 402, 420, 48); register.Visible = true; register.Enabled = true; employeeName.Enabled = true; phoneNumber.Enabled = true;
         }
         finally { registering = false; }
     }
@@ -193,9 +190,7 @@ public sealed class AgentForm : Form
             if (response is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
             {
                 if (await HandleActionAsync()) return;
-                timer.Stop(); supportTimer.Stop(); profile.Enabled = false; store.DisableStartup(); store.Save(profile); tray.Visible = false;
-                if (HasCurrentConsent) BeginRegistration(); else ShowPrivacyNotice();
-                status.Text = "IT has disabled this agent. Ask IT to restore access, then click Check in."; ShowStatus();
+                timer.Stop(); supportTimer.Stop(); profile.Enabled = false; store.DisableStartup(); store.Save(profile); ExitAgent();
             }
             else status.Text = response == HttpStatusCode.OK
                 ? $"Registered to {profile.EmployeeName}. Last check-in {DateTime.Now:t}."
@@ -218,7 +213,7 @@ public sealed class AgentForm : Form
             if (principal.IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator))
             {
                 await api.CommandUpdateAsync(profile, command.Id, "decision", new SupportDecision(profile.AgentId, false));
-                status.Text = "Support is disabled while this app is elevated. Restart it normally."; ShowStatus(); return;
+                status.Text = "Support is disabled while this app is elevated."; return;
             }
 
             var runSilently = command.RunSilently && HasCurrentConsent;
@@ -230,7 +225,6 @@ public sealed class AgentForm : Form
             }
             if (!await api.CommandUpdateAsync(profile, command.Id, "decision", new SupportDecision(profile.AgentId, approved)) || !approved) return;
             logs.Log("SupportStarted", command.Id + (runSilently ? ":Silent" : ":Approved"));
-            if (!runSilently) tray.ShowBalloonTip(3000, "MiLife IT support", "Running your approved support command.", ToolTipIcon.Info);
 
             SupportResult result;
             try
@@ -245,16 +239,6 @@ public sealed class AgentForm : Form
         finally { supporting = false; }
     }
 
-    private async Task DisableAsync()
-    {
-        if (!profile.Enabled) return;
-        timer.Stop(); supportTimer.Stop();
-        try { store.DisableStartup(); profile.Enabled = false; store.Save(profile); tray.Visible = false; }
-        catch (Exception ex) { logs.Log("DisableFailed", ex.GetType().Name); status.Text = "Unable to disable startup. Contact IT."; return; }
-        try { await api.SendAsync(profile, disable: true); } catch (Exception ex) { logs.Log("DisableNotificationFailed", ex.GetType().Name); }
-        BeginRegistration(); status.Text = "Agent disabled."; ShowStatus();
-    }
-
     private async Task<bool> HandleActionAsync()
     {
         if (processingAction) return true;
@@ -266,7 +250,7 @@ public sealed class AgentForm : Form
             action = await api.PendingActionAsync(profile);
             if (action is null || action.Action is not ("Disable" or "Remove")) return false;
             if (!await api.ActionStatusAsync(profile, action.Id, "Acknowledged")) return false;
-            timer.Stop(); supportTimer.Stop(); store.DisableStartup(); profile.Enabled = false; store.Save(profile); tray.Visible = false;
+            timer.Stop(); supportTimer.Stop(); store.DisableStartup(); profile.Enabled = false; store.Save(profile);
             if (action.Action == "Disable")
             {
                 await api.ActionStatusAsync(profile, action.Id, "Completed");
@@ -281,7 +265,7 @@ public sealed class AgentForm : Form
             if (action is not null)
             {
                 try { await api.ActionStatusAsync(profile, action.Id, "Failed", "The agent could not finish the action. Contact IT."); } catch (Exception) { }
-                status.Text = "This action could not finish. Please contact IT."; ShowStatus(); return true;
+                status.Text = "This action could not finish. Please contact IT."; return true;
             }
             return false;
         }
@@ -291,7 +275,7 @@ public sealed class AgentForm : Form
     private void ExitAgent() { exiting = true; timer.Stop(); supportTimer.Stop(); Close(); }
     protected override void Dispose(bool disposing)
     {
-        if (disposing) { timer.Dispose(); supportTimer.Dispose(); tray.Dispose(); api.Dispose(); logo.Image?.Dispose(); }
+        if (disposing) { timer.Dispose(); supportTimer.Dispose(); api.Dispose(); logo.Image?.Dispose(); }
         base.Dispose(disposing);
     }
 }

@@ -11,10 +11,11 @@ public static class SupportEndpoints
     public static void MapSupport(this WebApplication app)
     {
         app.MapGet("/device-admin/api/commands/catalog", Catalog);
-        app.MapGet("/device-admin/api/commands", async (IntakeDbContext db, TimeProvider clock, CancellationToken ct) =>
+        app.MapGet("/device-admin/api/commands", async (bool? includeExpired, IntakeDbContext db, TimeProvider clock, CancellationToken ct) =>
         {
             await ExpireAsync(db, clock, ct);
-            return Results.Ok(new { items = await db.SupportJobs.AsNoTracking().OrderByDescending(j => j.RequestedAtUtc)
+            var jobs = db.SupportJobs.AsNoTracking().Where(j => includeExpired == true || j.Status != "Expired");
+            return Results.Ok(new { items = await jobs.OrderByDescending(j => j.RequestedAtUtc)
                 .Take(100).Select(j => new { j.Id, j.AgentId, j.Agent.SerialNumber, j.Agent.EmployeeName, j.DisplayName,
                     j.Script, j.RunSilently, j.RequestedBy, j.Status, j.RequestedAtUtc, j.Output, j.ExitCode }).ToListAsync(ct) });
         });
@@ -77,10 +78,12 @@ public static class SupportEndpoints
             && (j.Status == "Queued" || j.Status == "AwaitingApproval" || j.Status == "Running"), ct))
             return Results.Conflict(new { error = "A support command is already active for this agent." });
 
+        var deliveryMinutes = request.DeliveryWindowMinutes ?? 1440;
+        if (deliveryMinutes is < 5 or > 1440) return Results.BadRequest(new { error = "Delivery window must be between 5 minutes and 24 hours." });
         var now = clock.GetUtcNow().UtcDateTime;
         var job = new SupportJob { Id = Guid.NewGuid(), AgentId = id, Script = script, CommandType = commandType,
             DisplayName = displayName, RunSilently = request.RunSilently, RequestedBy = context.User.Identity!.Name!,
-            RequestedAtUtc = now, ExpiresAtUtc = now.AddMinutes(5) };
+            RequestedAtUtc = now, ExpiresAtUtc = now.AddMinutes(deliveryMinutes) };
         db.SupportJobs.Add(job); await db.SaveChangesAsync(ct);
         return Results.Ok(new { job.Id, job.Status, job.DisplayName, job.RunSilently, job.ExpiresAtUtc });
     }
