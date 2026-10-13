@@ -2,7 +2,7 @@
 
 The production 1.6 binary for this rollout has SHA-256:
 
-`7C65A6FF3631F4D0E8088EA28514789F72A18637945AF3A0B7E3C95DB4A040E4`
+`AA84BC4CA53CC9939AE7453901FA77729287671AFCE3919F7EC8272FEF9FA47F`
 
 ## Scheduled task created by the agent
 
@@ -41,6 +41,6 @@ The API download endpoint must accept both `GET` and `HEAD`; BITS initially retu
 
 Before using the script for a rebuilt release, replace `$expectedSha256` with the hash from `Get-FileHash publish\agent\MiLifeDeviceAgent.exe -Algorithm SHA256`. Never remove the hash check.
 
-The safe rollout order is MILHQIT first, confirm a 1.6 heartbeat, then select only online enabled agents below 1.6. Queue the BITS stage silently with a 24-hour delivery window. Poll BITS until the state is `Transferred` and the byte count is `76702566`; then queue the finalizer. Confirm each device reports 1.6 before expanding the batch. Do not queue another support command while an upgrade is active.
+The safe rollout order is MILHQIT first, confirm a 1.6 heartbeat, then select only online enabled agents below 1.6. Queue the BITS stage silently with a 24-hour delivery window. Poll BITS until the state is `Transferred` and the byte count is `76702567`; then queue the finalizer. Confirm each device reports 1.6.1 before expanding the batch. Do not queue another support command while an upgrade is active.
 
 On 13 October 2026, the deployment produced eight confirmed 1.6 agents including MILHQIT. Devices whose finalizer did not swap continued heartbeating on 1.4; further live retries were stopped to avoid employee disruption. Offline agents were not forced and remain eligible for a later controlled batch.

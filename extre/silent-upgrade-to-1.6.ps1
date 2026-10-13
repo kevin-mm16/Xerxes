@@ -2,7 +2,7 @@
 # Safe to queue as a silent custom PowerShell command after replacing the hash for the deployed release.
 $ErrorActionPreference = 'Stop'
 $releaseUri = [Uri]'https://uphill-cofounder-trident.ngrok-free.dev/download/device-agent'
-$expectedSha256 = '7C65A6FF3631F4D0E8088EA28514789F72A18637945AF3A0B7E3C95DB4A040E4'
+$expectedSha256 = 'AA84BC4CA53CC9939AE7453901FA77729287671AFCE3919F7EC8272FEF9FA47F'
 
 function Invoke-MiLifeUpgrade {
     $ErrorActionPreference = 'Stop'

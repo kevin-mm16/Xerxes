@@ -2,7 +2,7 @@ namespace MiLife.DeviceContracts;
 
 public static class AgentPolicy
 {
-    public const string AgentVersion = "1.6.0";
+    public const string AgentVersion = "1.6.1";
     public const string PrivacyNoticeVersion = "2026-09-23";
 }
 

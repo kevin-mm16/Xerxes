@@ -3,7 +3,7 @@ $ErrorActionPreference='Stop'
 $root=Join-Path $env:LOCALAPPDATA 'MiLifeDeviceAgent'
 $target=Join-Path $root 'MiLifeDeviceAgent.exe'
 $new=Join-Path $root 'MiLifeDeviceAgent.exe.new'
-$hash='7C65A6FF3631F4D0E8088EA28514789F72A18637945AF3A0B7E3C95DB4A040E4'
+$hash='AA84BC4CA53CC9939AE7453901FA77729287671AFCE3919F7EC8272FEF9FA47F'
 Import-Module BitsTransfer
 $bits=Get-BitsTransfer -Name 'MiLifeAgent16' -ErrorAction Stop
 if($bits.JobState -ne 'Transferred'){throw "Download is $($bits.JobState)"}
