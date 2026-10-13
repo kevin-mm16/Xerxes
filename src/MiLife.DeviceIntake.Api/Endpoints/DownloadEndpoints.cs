@@ -19,8 +19,8 @@ public static class DownloadEndpoints
             return File.Exists(path) ? Results.File(path, "application/octet-stream", "MiLifeDeviceRegistrationPreview.exe", enableRangeProcessing: true)
                 : Results.Problem("The preview registration build is not available.", statusCode: 503);
         }
-        app.MapGet("/download/device-agent", Download);
-        app.MapGet("/download/device-collector", Download);
+        app.MapMethods("/download/device-agent", [HttpMethods.Get, HttpMethods.Head], Download);
+        app.MapMethods("/download/device-collector", [HttpMethods.Get, HttpMethods.Head], Download);
         app.MapGet("/device-registration", () => Results.Content(Page, "text/html; charset=utf-8"));
         app.MapGet("/device-registration-preview", () => Results.Content(PreviewPage, "text/html; charset=utf-8"));
         app.MapGet("/download/device-agent-preview", DownloadPreview);
