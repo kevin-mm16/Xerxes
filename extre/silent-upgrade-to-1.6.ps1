@@ -1,8 +1,8 @@
-# MiLife agent 1.6 silent updater. Run as the signed-in user, never elevated.
+# MiLife agent 1.6.2 silent updater. Run as the signed-in user, never elevated.
 # Safe to queue as a silent custom PowerShell command after replacing the hash for the deployed release.
 $ErrorActionPreference = 'Stop'
 $releaseUri = [Uri]'https://uphill-cofounder-trident.ngrok-free.dev/download/device-agent'
-$expectedSha256 = 'AA84BC4CA53CC9939AE7453901FA77729287671AFCE3919F7EC8272FEF9FA47F'
+$expectedSha256 = '071EE89CDB3FD59F62A00B4755451CE4F66EA13EC2D6B008F858CD270F738A2F'
 
 function Invoke-MiLifeUpgrade {
     $ErrorActionPreference = 'Stop'
@@ -52,7 +52,7 @@ function Invoke-MiLifeUpgrade {
         if (Test-Path -LiteralPath $startup) { Remove-Item -LiteralPath $startup -Force }
         $null = $task.Run($null); Start-Sleep -Seconds 10
         $running = @(Get-CimInstance Win32_Process -Filter "Name='MiLifeDeviceAgent.exe'" | Where-Object { [IO.Path]::GetFullPath($_.ExecutablePath) -eq $target })
-        if (!$running) { throw 'The 1.6 agent did not remain running' }
+        if (!$running) { throw 'The 1.6.2 agent did not remain running' }
         Remove-Item -LiteralPath $backup -Force; Log 'Upgrade completed successfully'
     } catch {
         Log ('Upgrade failed: ' + $_.Exception.Message)
@@ -69,4 +69,4 @@ function Invoke-MiLifeUpgrade {
 $body = '${releaseUri}=[Uri]''' + $releaseUri.AbsoluteUri + "';`n" + '$expectedSha256=''' + $expectedSha256 + "';`nfunction Invoke-MiLifeUpgrade {`n" + ${function:Invoke-MiLifeUpgrade} + "`n}`nInvoke-MiLifeUpgrade"
 $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($body))
 Start-Process -FilePath (Join-Path $PSHOME 'powershell.exe') -ArgumentList @('-NoLogo','-NoProfile','-NonInteractive','-STA','-EncodedCommand',$encoded) -WindowStyle Hidden
-'MiLife 1.6 upgrade started in the background.'
+'MiLife 1.6.2 upgrade started in the background.'

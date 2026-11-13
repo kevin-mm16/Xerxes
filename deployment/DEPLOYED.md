@@ -246,3 +246,20 @@ Build with scripts/build-agent.ps1 using the collector API URL and enrollment-to
 Validation: 56 automated tests pass. Real Edge browser checks passed for public login, device list, hardware details, mobile layout and logout. A non-elevated agent registered and sent a public HTTPS heartbeat; the dashboard showed Online. Disabling removed its Startup shortcut and disabled it on the server. The test process is no longer running. One disabled test agent and three inventory submissions for one device remain for review.
 
 MySQL migration 20260917172148_HeartbeatAgents is applied. Runtime DB grants remain SELECT/INSERT/UPDATE/DELETE. Nginx also forwards /device-admin and its children, /api/device-agent/ and /download/device-agent to the collector API.
+
+## Agent 1.6.2 background-start fix — 2026-11-05
+
+Agent 1.6.2 uses the scheduled task's `--background` argument before the first
+WinForms frame is displayed. A registered installation therefore starts after
+sign-in or restart without flashing the registration or terms window. First-time
+registration remains visible, and an explicit employee-approval support command
+continues to use its separate approval dialog.
+
+MILHQIT passed the first-device upgrade check: the installed 1.6.2 process ran
+from the scheduled task with no main-window handle and reported a healthy
+heartbeat. The production server download was replaced after a rollback backup.
+Release SHA-256:
+`071EE89CDB3FD59F62A00B4755451CE4F66EA13EC2D6B008F858CD270F738A2F`.
+Release size: `76737513` bytes. The rollout scripts select only online, enabled,
+non-revoked agents below 1.6.2 and require a matching BITS byte count and SHA-256
+before replacement.

@@ -17,3 +17,5 @@ TestResults/
 **/node_modules/
 *.tsbuildinfo
 !**/collector-settings.example.json
+__pycache__/
+*.pyc

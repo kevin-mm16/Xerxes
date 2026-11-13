@@ -23,6 +23,7 @@ public sealed class AgentForm : Form
     private readonly Panel formPanel = new();
     private readonly PrivacyConsentPanel privacyPanel = new();
     private readonly Label notice = new();
+    private readonly bool suppressStartupWindow;
     private bool processingAction;
     private Task? collection;
     private bool sending, supporting, exiting, registering;
@@ -36,6 +37,14 @@ public sealed class AgentForm : Form
         Font = new Font("Segoe UI", 10); BackColor = Color.White; ForeColor = Color.FromArgb(16, 30, 64);
         logs = new LocalFiles(AgentPolicy.AgentVersion, store.DirectoryPath);
         profile = store.Load() ?? new AgentProfile(); api = new AgentApi(settings, logs); employeeName.Text = profile.EmployeeName; phoneNumber.Text = profile.PhoneNumber;
+        suppressStartupWindow = background && Registered;
+        if (suppressStartupWindow)
+        {
+            // Application.Run initially shows its main form. Keep a registered scheduled-task
+            // launch invisible from the first frame instead of briefly flashing the check-in UI.
+            Opacity = 0;
+            ShowInTaskbar = false;
+        }
 
         using (var logoStream = System.Reflection.Assembly.GetExecutingAssembly().GetManifestResourceStream("MiLifeLogo")!)
         using (var image = Image.FromStream(logoStream)) logo.Image = new Bitmap(image);

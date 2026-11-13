@@ -1,8 +1,8 @@
-# MiLife agent 1.6: scheduled task and silent upgrade method
+# MiLife agent 1.6.2: scheduled task and silent upgrade method
 
 The production 1.6 binary for this rollout has SHA-256:
 
-`AA84BC4CA53CC9939AE7453901FA77729287671AFCE3919F7EC8272FEF9FA47F`
+`071EE89CDB3FD59F62A00B4755451CE4F66EA13EC2D6B008F858CD270F738A2F`
 
 ## Scheduled task created by the agent
 
@@ -37,10 +37,10 @@ The API download endpoint must accept both `GET` and `HEAD`; BITS initially retu
 5. It keeps the old executable as `.rollback`, replaces it with the verified 1.6 binary, creates the current-user Scheduled Task, and removes the legacy shortcut.
 6. It launches 1.6 through Task Scheduler and waits for the exact installed process path.
 7. If 1.6 does not remain running, it restores the previous executable and restarts it through the same task.
-8. It records local progress in `%LOCALAPPDATA%\MiLifeDeviceAgent\upgrade-1.6.log`.
+8. It records local progress in `%LOCALAPPDATA%\MiLifeDeviceAgent\upgrade-1.6.2.log`.
 
 Before using the script for a rebuilt release, replace `$expectedSha256` with the hash from `Get-FileHash publish\agent\MiLifeDeviceAgent.exe -Algorithm SHA256`. Never remove the hash check.
 
-The safe rollout order is MILHQIT first, confirm a 1.6 heartbeat, then select only online enabled agents below 1.6. Queue the BITS stage silently with a 24-hour delivery window. Poll BITS until the state is `Transferred` and the byte count is `76702567`; then queue the finalizer. Confirm each device reports 1.6.1 before expanding the batch. Do not queue another support command while an upgrade is active.
+The safe rollout order is MILHQIT first, confirm a 1.6.2 heartbeat, then select only online enabled agents below 1.6.2. Queue the BITS stage silently with a 24-hour delivery window. Poll BITS until the state is `Transferred` and the byte count is `76737513`; then queue the finalizer. Confirm each device reports 1.6.2 before expanding the batch. Do not queue another support command while an upgrade is active.
 
 On 13 October 2026, the deployment produced eight confirmed 1.6 agents including MILHQIT. Devices whose finalizer did not swap continued heartbeating on 1.4; further live retries were stopped to avoid employee disruption. Offline agents were not forced and remain eligible for a later controlled batch.
